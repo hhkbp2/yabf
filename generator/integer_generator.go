@@ -43,8 +43,12 @@ func (self *IntegerGeneratorBase) LastInt() int64 {
 	return self.lastInt
 }
 
+func (self *IntegerGeneratorBase) lastStringFrom(g IntegerGenerator) string {
+	return fmt.Sprintf("%d", g.LastInt())
+}
+
 func (self *IntegerGeneratorBase) LastString() string {
-	return fmt.Sprintf("%d", self.LastInt())
+	return self.lastStringFrom(self)
 }
 
 // ConstantIntegerGenerator is a trivial integer generator that always returns

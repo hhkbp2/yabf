@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"sync"
 	"sync/atomic"
 )
 
@@ -29,4 +30,50 @@ func (self *CounterGenerator) NextString() string {
 
 func (self *CounterGenerator) Mean() float64 {
 	panic("unsupported operation")
+}
+
+const (
+	AcknowledgedWindowSize = int64(1 << 20)
+	AcknowledgedWindowMask = AcknowledgedWindowSize - 1
+)
+
+type AcknowledgedCounterGenerator struct {
+	*CounterGenerator
+	mutex  *sync.Mutex
+	window []bool
+	limit  int64
+}
+
+func NewAcknowledgedCounterGenerator(startCount int64) *AcknowledgedCounterGenerator {
+	return &AcknowledgedCounterGenerator{
+		CounterGenerator: NewCounterGenerator(startCount),
+		lock:             &sync.Mutex{},
+		window:           make([]bool, AcknowledgedWindowSize),
+		limit:            startCount - 1,
+	}
+}
+
+func (self *AcknowledgedCounterGenerator) LastInt() int64 {
+	return self.limit
+}
+
+func (self *AcknowledgedCounterGenerator) LastString() string {
+	return self.lastStringFrom(self)
+}
+
+func (self *AcknowledgedCounterGenerator) Acknowledge(value int64) {
+	currentSlot := value & AcknowledgedWindowMask
+	self.window[currentSlot] = true
+	self.mutex.Lock()
+	defer self.mutex.Unlock()
+	beforeFirstSlot = self.limit & AcknowledgedWindowMask
+	var index int64
+	for index = limit + 1; index != beforeFirstSlot; index++ {
+		slot := index & AcknowledgedWindowMask
+		if !self.window[slot] {
+			break
+		}
+		window[slot] = false
+	}
+	limit = index - 1
 }
