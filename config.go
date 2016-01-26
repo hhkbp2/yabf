@@ -1,4 +1,4 @@
-package generator
+package yabf
 
 const (
 	ConfigBasicDBVerbose        = "basicdb.verbose"

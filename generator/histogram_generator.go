@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"bufio"
 	"container/list"
 	"errors"
 	"fmt"
@@ -34,8 +35,9 @@ func NewHistogramGeneratorFromFile(file string) (*HistogramGenerator, error) {
 	}
 	defer f.Close()
 	l := list.New()
-	scanner := bufio.NewScanner(bufio.NewSource(f))
+	scanner := bufio.NewScanner(f)
 	lineCount := 0
+	var size int64
 	for scanner.Scan() {
 		line := scanner.Text()
 		parts := strings.Split(line, "\t")
@@ -47,10 +49,11 @@ func NewHistogramGeneratorFromFile(file string) (*HistogramGenerator, error) {
 				return nil, NewErrorf(
 					"First line of histogram file is not the BlockSize")
 			}
-			size, err := strconv.Atoi(parts[1])
+			s, err := strconv.Atoi(parts[1])
 			if err != nil {
 				return nil, err
 			}
+			size = int64(s)
 		} else {
 			k, err := strconv.Atoi(parts[0])
 			if err != nil {
@@ -92,7 +95,7 @@ func (self *HistogramGenerator) init() {
 	var area, weightedArea int64
 	for i := 0; i < len(self.buckets); i++ {
 		area += self.buckets[i]
-		weightedArea = i * self.buckets[i]
+		weightedArea = int64(i) * self.buckets[i]
 	}
 	self.area = area
 	self.weightedArea = weightedArea
@@ -100,15 +103,17 @@ func (self *HistogramGenerator) init() {
 }
 
 func (self *HistogramGenerator) NextInt() int64 {
-	number = NextInt64(self.area)
-	var i int64
+	number := NextInt64(self.area)
+	var i int
 	for i = 0; i < len(self.buckets)-1; i++ {
 		number -= self.buckets[i]
 		if number <= 0 {
-			return (i + 1) * self.blockSize
+			return int64(i+1) * self.blockSize
 		}
 	}
-	return i * self.blockSize
+	next := int64(i) * self.blockSize
+	self.SetLastInt(next)
+	return next
 }
 
 func (self *HistogramGenerator) NextString() string {

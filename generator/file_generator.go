@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"bufio"
 	"os"
 )
 
@@ -39,7 +40,7 @@ func (self *FileGenerator) LastString() string {
 
 func (self *FileGenerator) ReloadFile() error {
 	self.file.Close()
-	f, err = os.Open(self.filename)
+	f, err := os.Open(self.filename)
 	if err != nil {
 		return err
 	}

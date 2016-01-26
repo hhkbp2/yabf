@@ -2,7 +2,7 @@ package generator
 
 import (
 	"math"
-	"rand"
+	"math/rand"
 )
 
 const (
@@ -11,15 +11,15 @@ const (
 )
 
 var (
-	random rand.Random
+	random *rand.Rand
 )
 
 func init() {
-	random = rand.New(rand.NewSource(rand.NextInt63()))
+	random = rand.New(rand.NewSource(rand.Int63()))
 }
 
 func NextInt64(n int64) int64 {
-	return random.Int63(n)
+	return random.Int63n(n)
 }
 
 func NextFloat64() float64 {
@@ -50,7 +50,9 @@ func (self *ExponentialGenerator) NextInt() int64 {
 }
 
 func (self *ExponentialGenerator) NextLong() int64 {
-	return int64(-math.Log(NextFloat64()) / self.gamma)
+	next := int64(-math.Log(NextFloat64()) / self.gamma)
+	self.SetLastInt(next)
+	return next
 }
 
 func (self *ExponentialGenerator) NextString() string {

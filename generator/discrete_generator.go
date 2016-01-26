@@ -1,9 +1,5 @@
 package generator
 
-import (
-	"math"
-)
-
 type Pair struct {
 	Weight float64
 	Value  string
@@ -16,20 +12,20 @@ type DiscreteGenerator struct {
 
 func NewDiscreteGenerator() *DiscreteGenerator {
 	return &DiscreteGenerator{
-		values:    make([]Pair, 0),
+		values:    make([]*Pair, 0),
 		lastValue: "",
 	}
 }
 
 func (self *DiscreteGenerator) NextString() string {
 	var sum float64
-	for p := range self.values {
+	for _, p := range self.values {
 		sum += p.Weight
 	}
 
 	value := NextFloat64()
 
-	for p := range self.values {
+	for _, p := range self.values {
 		v := p.Weight / sum
 		if value < v {
 			return p.Value

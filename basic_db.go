@@ -1,8 +1,10 @@
-package generator
+package yabf
 
 import (
-	"github.com/hhkbp2/yabf/basic_db/generator"
+	"fmt"
+	"github.com/hhkbp2/yabf/generator"
 	"strconv"
+	"time"
 )
 
 func MillisecondToNanosecond(millis int64) int64 {
@@ -36,7 +38,7 @@ func ConcatKVStr(values KVMap) string {
 		} else {
 			afterFirst = true
 		}
-		ret += (k + "=" + v)
+		ret += fmt.Sprintf("%s=%s", k, v)
 	}
 	return ret
 }
@@ -72,7 +74,7 @@ func (self *BasicDB) Delay() {
 
 // Initialize any state for this DB.
 func (self *BasicDB) Init() error {
-	p = self.GetProperties()
+	p := self.GetProperties()
 	var err error
 	self.verbose, err = strconv.ParseBool(
 		p.GetDefault(ConfigBasicDBVerbose, ConfigBasicDBVerboseDefault))
@@ -80,7 +82,7 @@ func (self *BasicDB) Init() error {
 		return err
 	}
 	self.toDelay, err = strconv.ParseInt(
-		p.GetDefault(ConfigSimulateDelay, ConfigSimulateDelayDefault))
+		p.GetDefault(ConfigSimulateDelay, ConfigSimulateDelayDefault), 0, 64)
 	if err != nil {
 		return err
 	}
@@ -92,6 +94,7 @@ func (self *BasicDB) Init() error {
 	if self.verbose {
 		OutputProperties(p)
 	}
+	return nil
 }
 
 // Read a record from the database.

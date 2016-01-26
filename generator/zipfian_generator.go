@@ -1,17 +1,21 @@
 package generator
 
+import (
+	"math"
+)
+
 const (
 	ZipfianConstant = float64(0.99)
 )
 
 func zeta(st, n int64, theta, initialSum float64) (int64, float64) {
-	countForzata = n
+	countForzata := n
 	return countForzata, zetaStatic(st, n, theta, initialSum)
 }
 
 func zetaStatic(st, n int64, theta, initialSum float64) float64 {
 	sum := initialSum
-	for i = st; i < n; i++ {
+	for i := st; i < n; i++ {
 		sum += 1 / math.Pow(float64(i+1), theta)
 	}
 	return sum
@@ -62,11 +66,11 @@ func (self *ZipfianGenerator) NextInt() int64 {
 func (self *ZipfianGenerator) Next(itemCount int64) int64 {
 	if itemCount != self.countForzata {
 		if itemCount > self.countForzata {
-			self.zetan = zeta(self.countForzata, itemCount, self.theta, self.zetan)
-			self.eta = (1 - math.Pow(2.0/self.items, 1-self.theta)) / (1 - self.zeta2theta/self.zetan)
+			self.countForzata, self.zetan = zeta(self.countForzata, itemCount, self.theta, self.zetan)
+			self.eta = (1 - math.Pow(float64(2.0/self.items), 1-self.theta)) / (1 - self.zeta2theta/self.zetan)
 		} else if (itemCount < self.countForzata) && (self.allowItemCountDecrease) {
-			self.zetan = zeta(0, itemCount, self.theta, 0)
-			self.eta = (1 - math.Pow(2.0/self.items, 1-self.theta)) / (1 - self.zeta2theta/self.zetan)
+			self.countForzata, self.zetan = zeta(0, itemCount, self.theta, 0)
+			self.eta = (1 - math.Pow(float64(2.0/self.items), 1-self.theta)) / (1 - self.zeta2theta/self.zetan)
 		}
 	}
 
@@ -78,7 +82,7 @@ func (self *ZipfianGenerator) Next(itemCount int64) int64 {
 	if uz < 1.0+math.Pow(0.5, self.theta) {
 		return self.base + 1
 	}
-	ret = self.base + int64(itemCount*math.Pow(self.eta*u-self.eta+1, self.alpha))
+	ret := self.base + int64(float64(itemCount)*math.Pow(self.eta*u-self.eta+1.0, self.alpha))
 	self.IntegerGeneratorBase.SetLastInt(ret)
 	return ret
 }

@@ -47,7 +47,7 @@ type AcknowledgedCounterGenerator struct {
 func NewAcknowledgedCounterGenerator(startCount int64) *AcknowledgedCounterGenerator {
 	return &AcknowledgedCounterGenerator{
 		CounterGenerator: NewCounterGenerator(startCount),
-		lock:             &sync.Mutex{},
+		mutex:            &sync.Mutex{},
 		window:           make([]bool, AcknowledgedWindowSize),
 		limit:            startCount - 1,
 	}
@@ -66,14 +66,14 @@ func (self *AcknowledgedCounterGenerator) Acknowledge(value int64) {
 	self.window[currentSlot] = true
 	self.mutex.Lock()
 	defer self.mutex.Unlock()
-	beforeFirstSlot = self.limit & AcknowledgedWindowMask
+	beforeFirstSlot := self.limit & AcknowledgedWindowMask
 	var index int64
-	for index = limit + 1; index != beforeFirstSlot; index++ {
+	for index = self.limit + 1; index != beforeFirstSlot; index++ {
 		slot := index & AcknowledgedWindowMask
 		if !self.window[slot] {
 			break
 		}
-		window[slot] = false
+		self.window[slot] = false
 	}
-	limit = index - 1
+	self.limit = index - 1
 }

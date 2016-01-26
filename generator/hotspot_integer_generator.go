@@ -31,7 +31,7 @@ func NewHotspotIntegerGenerator(
 		lowerBound, upperBound = upperBound, lowerBound
 	}
 	interval := upperBound - lowerBound + 1
-	hotInterval := int64(interval * hotsetFraction)
+	hotInterval := int64(float64(interval) * hotsetFraction)
 	object := &HotspotIntegerGenerator{
 		IntegerGeneratorBase: NewIntegerGeneratorBase(0),
 		lowerBound:           lowerBound,
@@ -51,7 +51,7 @@ func (self *HotspotIntegerGenerator) NextInt() int64 {
 		value = self.lowerBound + NextInt64(self.hotInterval)
 	} else {
 		// Choose a value from the cold set.
-		value = self.lowerBound + hotInterval + NextInt64(self.coldInterval)
+		value = self.lowerBound + self.hotInterval + NextInt64(self.coldInterval)
 	}
 	self.SetLastInt(value)
 	return value
@@ -62,8 +62,8 @@ func (self *HotspotIntegerGenerator) NextString() string {
 }
 
 func (self *HotspotIntegerGenerator) Mean() float64 {
-	return self.hotOpnFraction*(self.lowerBound+self.hotInterval/2.0) +
-		(1-self.hotOpnFraction)*(self.lowerBound+self.hotInterval+self.coldInterval/2.0)
+	return self.hotOpnFraction*float64(self.lowerBound+self.hotInterval/2.0) +
+		(1-self.hotOpnFraction)*float64(self.lowerBound+self.hotInterval+self.coldInterval/2.0)
 }
 
 func (self *HotspotIntegerGenerator) GetLowerBound() int64 {
