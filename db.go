@@ -53,7 +53,7 @@ type DB interface {
 
 	// Perform a range scan for a set of records in the database.
 	// Each field/value pair from the result will be returned.
-	Scan(table string, key Binary, fields []Binary) (KVMap, error)
+	Scan(table string, startKey Binary, recordCount int, fields []Binary) (KVMap, error)
 
 	// Update a record in the database.
 	// Any field/value pairs in the specified values will be written into
@@ -67,4 +67,20 @@ type DB interface {
 
 	// Delete a reord from the database.
 	Delete(table string, key Binary) error
+}
+
+type DBBase struct {
+	p Properties
+}
+
+func NewDBBase() *DBBase {
+	return &DBBase{}
+}
+
+func (self *DBBase) SetProperties(p Properties) {
+	self.p = p
+}
+
+func (self *DBBase) GetProperties() Properties {
+	return self.p
 }
