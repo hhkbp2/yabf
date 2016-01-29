@@ -6,6 +6,10 @@ import (
 
 type Properties map[string]string
 
+func NewProperties() Properties {
+	return make(Properties)
+}
+
 func (self Properties) Get(key string) string {
 	v, _ := self[key]
 	return v
@@ -16,6 +20,10 @@ func (self Properties) GetDefault(key string, defaultValue string) string {
 		return v
 	}
 	return defaultValue
+}
+
+func (self Properties) Add(key, value string) {
+	self[key] = value
 }
 
 func Output(format string, args ...interface{}) {
