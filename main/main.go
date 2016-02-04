@@ -24,8 +24,7 @@ type Arguemnts struct {
 }
 
 var (
-	DefaultTable = "usertable"
-	Commands     = map[string]bool{
+	Commands = map[string]bool{
 		"load":  true,
 		"run":   true,
 		"shell": true,
@@ -64,7 +63,7 @@ var (
 			Name:            "table",
 			HasArgument:     true,
 			HasDefaultValue: true,
-			DefaultValue:    DefaultTable,
+			DefaultValue:    PropertyTableDefault,
 			Doc:             "use the table name instead of the default %s",
 		},
 		&Option{
