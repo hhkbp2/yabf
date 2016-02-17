@@ -114,7 +114,7 @@ const (
 	// Percentage opertions that access the hot set.
 	HotspotOpnFraction = "hotspotopnfraction"
 	// The default value of `HotspotOpnFraction`
-	HotspotDataFractionDefault = "0.8"
+	HotspotOpnFractionDefault = "0.8"
 	// How many times to retry when insertion of a single item to a DB fails.
 	InsertionRetryLimit = "core_workload_insertion_retry_limit"
 	// The default value of `InsertionRetryLimit`
@@ -150,4 +150,11 @@ const (
 	PropertyPercentiles = "hdrhistogram.percentiles"
 	// The default value of `PropertyPercentiles`
 	PropertyPercentilesDefault = "95,99"
+	// The name of the property that specifies the output filename of hdrhistogram
+	PropertyHdrHistogramOutput = "hdrhistogram.fileoutput"
+	// The default value of `PropertyHdrHistogramOutput`
+	PropertyHdrHistogramOutputDefault = "false"
+	PropertyHdrHistogramOutputPath    = "hdrhistogram.output.path"
+	// The default value of `PropertyHdrHistogramOutputPath`
+	PropertyHdrHistogramOutputPathDefault = ""
 )

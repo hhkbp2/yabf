@@ -3,6 +3,7 @@ package yabf
 import (
 	"bufio"
 	"container/list"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"github.com/codahale/hdrhistogram"
@@ -11,6 +12,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -39,7 +41,7 @@ type OneMeasurement interface {
 	GetName() string
 	GetSummary() string
 	// Export the current measurements to a suitable format.
-	Export(exporter MeasurementExporter)
+	Export(exporter MeasurementExporter) error
 }
 
 type OneMeasurementBase struct {
@@ -99,6 +101,7 @@ type innerJSONMeasurement struct {
 	Value       interface{} `json:"value"`
 }
 
+// Export measurements into a machine readable JSON file.
 type JSONMeasurementExporter struct {
 	io.WriteCloser
 	buf *bufio.Writer
@@ -184,12 +187,14 @@ func (self *JSONArrayMeasurementExporter) Close() error {
 	return err2
 }
 
+// One raw point, has two fields:
+// timestamp(ms) when the datapoint is inserted, and the value.
 type RawDataPoint struct {
 	timestamp time.Time
 	value     int64
 }
 
-func NewRawDataPoint(value int64) {
+func NewRawDataPoint(value int64) *RawDataPoint {
 	return &RawDataPoint{
 		timestamp: time.Now(),
 		value:     value,
@@ -210,6 +215,8 @@ func (self RawDataPointSlice) Swap(i, j int) {
 	self[i], self[j] = self[j], self[i]
 }
 
+// Record a series of measurements as raw data points without down sampling,
+// optionally write to an output file when configured.
 type OneMeasurementRaw struct {
 	*OneMeasurementBase
 	filePath       string
@@ -228,9 +235,9 @@ func NewOneMeasurementRaw(name string, props Properties) (*OneMeasurementRaw, er
 	filePath := props.GetDefault(OutputFilePath, OutputFilePathDefault)
 	var output *os.File
 	if len(filePath) == 0 {
-		outpu = os.Stdout
+		output = os.Stdout
 	} else {
-		f, err := os.Open(filePath)
+		f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
 			return nil, err
 		}
@@ -238,23 +245,24 @@ func NewOneMeasurementRaw(name string, props Properties) (*OneMeasurementRaw, er
 	}
 	noSummaryStats, err := strconv.ParseBool(props.GetDefault(NoSummaryStats, NoSummaryStatsDefault))
 	if err != nil {
-		writer.Close()
+		output.Close()
 		return nil, err
 	}
-	return &OneMeasurementRaw{
+	object := &OneMeasurementRaw{
 		OneMeasurementBase: NewOneMeasurementBase(name),
 		filePath:           filePath,
 		file:               output,
 		noSummaryStats:     noSummaryStats,
 		measurements:       list.New(),
 	}
+	return object, nil
 }
 
 func (self *OneMeasurementRaw) Measure(latency int64) {
 	self.totalLatency += latency
 	self.windowTotalLatency += latency
 	self.windowOperations++
-	self.measurements.PushBack(NewDataPoint(latency))
+	self.measurements.PushBack(NewRawDataPoint(latency))
 }
 
 func (self *OneMeasurementRaw) GetSummary() string {
@@ -268,45 +276,64 @@ func (self *OneMeasurementRaw) GetSummary() string {
 	return ret
 }
 
-func (self *OneMeasurementRaw) Export(exporter MeasurementExporter) {
-	self.file.WriteString(fmt.Sprintf(
+func try(err error) {
+	if err != nil {
+		panic(fmt.Errorf("error: %s", err.Error()))
+	}
+}
+
+func tryn(n int, err error) {
+	try(err)
+}
+
+func catch(err *error) {
+	if p := recover(); p != nil {
+		*err = p.(error)
+	}
+}
+
+func (self *OneMeasurementRaw) Export(exporter MeasurementExporter) (err error) {
+	defer catch(&err)
+	// Output raw data points first then print out a summary of percentiles.
+	tryn(self.file.WriteString(fmt.Sprintf(
 		"%s latency raw data: op, timestamp(ms), latency(us)\n",
-		self.GetName()))
-	for e := self.measurements.First(); e != nil; e = e.Next() {
+		self.GetName())))
+	for e := self.measurements.Front(); e != nil; e = e.Next() {
 		p := e.Value.(*RawDataPoint)
-		self.file.WriteString(fmt.Sprintf("%s,%d,%d",
-			self.GetName(), p.timestamp, p.value))
+		tryn(self.file.WriteString(fmt.Sprintf("%s,%d,%d",
+			self.GetName(), p.timestamp, p.value)))
 	}
 	if len(self.filePath) != 0 {
 		self.file.Close()
 	}
 	total := self.measurements.Len()
-	exporter.Write(self.GetName(), "Total Operations", total)
+	try(exporter.Write(self.GetName(), "Total Operations", total))
 	if total > 0 && !self.noSummaryStats {
 		s := make(RawDataPointSlice, 0, total)
 		i := 0
-		for e := self.measurements.First(); e != nil && i < total; e = e.Next() {
+		for e := self.measurements.Front(); e != nil && i < total; e = e.Next() {
 			p := e.Value.(*RawDataPoint)
 			s[i] = p
 			i++
 		}
-		exporter.Write(self.GetName(),
-			"Below is a summary of latency in miscroseconds:", -1)
-		exporter.Write(self.GetName(),
-			"Average", float64(self.totalLatency)/float64(total))
+		try(exporter.Write(self.GetName(),
+			"Below is a summary of latency in miscroseconds:", -1))
+		try(exporter.Write(self.GetName(),
+			"Average", float64(self.totalLatency)/float64(total)))
 		sort.Sort(s)
 		name := self.GetName()
-		exporter.Write(name, "Min", s[0].value)
-		exporter.Write(name, "Max", s[total-1].value)
-		exporter.Write(name, "p1", s[int(float64(total)*0.01)].value)
-		exporter.Write(name, "p5", s[int(float64(total)*0.05)].value)
-		exporter.Write(name, "p50", s[int(float64(total)*0.5)].value)
-		exporter.Write(name, "p90", s[int(float64(total)*0.9)].value)
-		exporter.Write(name, "p95", s[int(float64(total)*0.95)].value)
-		exporter.Write(name, "p99", s[int(float64(total)*0.99)].value)
-		exporter.Write(name, "p99.9", s[int(float64(total)*0.999)].value)
-		exporter.Write(name, "p99.99", s[int(float64(total)*0.9999)].value)
+		try(exporter.Write(name, "Min", s[0].value))
+		try(exporter.Write(name, "Max", s[total-1].value))
+		try(exporter.Write(name, "p1", s[int(float64(total)*0.01)].value))
+		try(exporter.Write(name, "p5", s[int(float64(total)*0.05)].value))
+		try(exporter.Write(name, "p50", s[int(float64(total)*0.5)].value))
+		try(exporter.Write(name, "p90", s[int(float64(total)*0.9)].value))
+		try(exporter.Write(name, "p95", s[int(float64(total)*0.95)].value))
+		try(exporter.Write(name, "p99", s[int(float64(total)*0.99)].value))
+		try(exporter.Write(name, "p99.9", s[int(float64(total)*0.999)].value))
+		try(exporter.Write(name, "p99.99", s[int(float64(total)*0.9999)].value))
 	}
+	return
 }
 
 // Take measurements and maintain a histogram of a given metric, such as
@@ -335,18 +362,19 @@ type OneMeasurementHistogram struct {
 }
 
 func NewOneMeasurementHistogram(name string, props Properties) (*OneMeasurementHistogram, error) {
-	buckets, err := strconv.ParseInt(props.GetDefault(Buckets, BucketsDefault))
+	buckets, err := strconv.ParseInt(props.GetDefault(Buckets, BucketsDefault), 0, 64)
 	if err != nil {
 		return nil, err
 	}
-	return &OneMeasurementHistogram{
+	object := &OneMeasurementHistogram{
 		OneMeasurementBase: NewOneMeasurementBase(name),
 		buckets:            int64(buckets),
-		histogram:          make(int64, buckets),
+		histogram:          make([]int64, buckets),
 		histogramOverflow:  0,
 		min:                -1,
 		max:                -1,
 	}
+	return object, nil
 }
 
 func (self *OneMeasurementHistogram) Measure(latency int64) {
@@ -380,18 +408,19 @@ func (self *OneMeasurementHistogram) GetSummary() string {
 	return fmt.Sprintf("[%s AverageLatency(us)=%.2d]", self.GetName(), report)
 }
 
-func (self *OneMeasurementHistogram) Export(exporter MeasurementExporter) {
-	mean := self.totalLatency / float64(self.operations)
-	variance := self.totalSquaredLatency/float64(self.operations) - math.Power(mean, 2.0)
+func (self *OneMeasurementHistogram) Export(exporter MeasurementExporter) (err error) {
+	defer catch(&err)
+	mean := float64(self.totalLatency) / float64(self.operations)
+	variance := self.totalSquaredLatency/float64(self.operations) - math.Pow(mean, 2.0)
 	name := self.GetName()
-	exporter.Write(name, "Operations", self.operations)
-	exporter.Write(name, "AverageLatency(us)", mean)
-	exporter.Write(name, "LatencyVariance(us)", variance)
-	exporter.Write(name, "MinLatency(us)", self.min)
-	exporter.Write(name, "MaxLatency(us)", self.max)
-	opCounter := 0
+	try(exporter.Write(name, "Operations", self.operations))
+	try(exporter.Write(name, "AverageLatency(us)", mean))
+	try(exporter.Write(name, "LatencyVariance(us)", variance))
+	try(exporter.Write(name, "MinLatency(us)", self.min))
+	try(exporter.Write(name, "MaxLatency(us)", self.max))
+	opCounter := int64(0)
 	done95th := false
-	for i := 0; i < self.buckets; i++ {
+	for i := int64(0); i < self.buckets; i++ {
 		opCounter += self.histogram[i]
 		percentage := float64(opCounter) / float64(self.operations)
 		if (!done95th) && (percentage >= 0.95) {
@@ -399,15 +428,50 @@ func (self *OneMeasurementHistogram) Export(exporter MeasurementExporter) {
 			done95th = true
 		}
 		if percentage >= 0.99 {
-			exporter.Write(name, "99thPercentileLatency(us)", i*1000)
+			try(exporter.Write(name, "99thPercentileLatency(us)", i*1000))
 			break
 		}
 	}
 
-	for i := 0; i < self.buckets; i++ {
-		exporter.Write(name, fmt.Sprintf("%d", i), self.histogram[i])
+	for i := int64(0); i < self.buckets; i++ {
+		try(exporter.Write(name, fmt.Sprintf("%d", i), self.histogram[i]))
 	}
-	exporter.Write(name, ">"+self.buckets, self.histogramOverflow)
+	try(exporter.Write(name, fmt.Sprintf(">%d", self.buckets), self.histogramOverflow))
+	return
+}
+
+type HdrHistogramLogReader struct {
+	r io.Reader
+}
+
+func NewHdrHistogramLogReader(r io.Reader) *HdrHistogramLogReader {
+	return &HdrHistogramLogReader{
+		r: r,
+	}
+}
+
+func (self *HdrHistogramLogReader) NextHistogram() (*hdrhistogram.Histogram, error) {
+	var snapshot *hdrhistogram.Snapshot
+	err := binary.Read(self.r, binary.LittleEndian, snapshot)
+	if err != nil {
+		return nil, err
+	}
+	h := hdrhistogram.Import(snapshot)
+	return h, nil
+}
+
+type HdrHistogramLogWriter struct {
+	w io.Writer
+}
+
+func NewHdrHistogramLogWriter(w io.Writer) *HdrHistogramLogWriter {
+	return &HdrHistogramLogWriter{
+		w: w,
+	}
+}
+
+func (self *HdrHistogramLogWriter) OutputHistogram(h *hdrhistogram.Histogram) error {
+	return binary.Write(self.w, binary.LittleEndian, h.Export())
 }
 
 type OneMeasurementHdrHistogram struct {
@@ -415,11 +479,114 @@ type OneMeasurementHdrHistogram struct {
 	histogram   *hdrhistogram.Histogram
 	filePath    string
 	file        *os.File
-	percentiles *list.List
+	writer      *HdrHistogramLogWriter
+	percentiles []int64
 }
 
-func NewOneMeasurementHistogram(name string) *OneMeasurementHdrHistogram {
-	// TODO
+// Helper function to parse the given percentile value string.
+func parsePercentileValues(prop, defaultValue string) []int64 {
+	parts := strings.Split(prop, ",")
+	ret := make([]int64, 0, len(parts))
+	for _, p := range parts {
+		i, err := strconv.ParseInt(p, 0, 64)
+		if err != nil {
+			return parsePercentileValues(defaultValue, defaultValue)
+		}
+		ret = append(ret, int64(i))
+	}
+	return ret
+}
+
+func NewOneMeasurementHdrHistogram(name string, props Properties) (*OneMeasurementHdrHistogram, error) {
+	prop := props.GetDefault(PropertyPercentiles, PropertyPercentilesDefault)
+	percentiles := parsePercentileValues(prop, PropertyPercentilesDefault)
+	prop = props.GetDefault(PropertyHdrHistogramOutput, PropertyHdrHistogramOutputDefault)
+	shouldLog, err := strconv.ParseBool(prop)
+	if err != nil {
+		return nil, err
+	}
+	var filePath string
+	var f *os.File
+	var writer *HdrHistogramLogWriter
+	if !shouldLog {
+		filePath = ""
+		f = nil
+		writer = nil
+	} else {
+		filePath = props.GetDefault(PropertyHdrHistogramOutputPath, PropertyHdrHistogramOutputPathDefault)
+		f, err = os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		if err != nil {
+			return nil, err
+		}
+		writer = NewHdrHistogramLogWriter(f)
+	}
+	object := &OneMeasurementHdrHistogram{
+		OneMeasurementBase: NewOneMeasurementBase(name),
+		histogram:          hdrhistogram.New(0, math.MaxInt64, 10),
+		filePath:           filePath,
+		file:               f,
+		writer:             writer,
+		percentiles:        percentiles,
+	}
+	return object, nil
+}
+
+// It appears latency is reported in micros.
+func (self *OneMeasurementHdrHistogram) Measure(latency int64) {
+	self.histogram.RecordValue(latency)
+}
+
+// This is called periodically from the status goroutine. There's a single
+// status goroutine per client process. We optionally serialize the interval to
+// log on this oppertunity.
+func (self *OneMeasurementHdrHistogram) GetSummary() string {
+	if self.writer != nil {
+		self.writer.OutputHistogram(self.histogram)
+	}
+	format := "[%s: Count=%d, Max=%d, Min=%d, Avg=%d, 90=%d, 99=%d, 99.9=%g, 99.99=%g]"
+	return fmt.Sprintf(format,
+		self.GetName(),
+		self.histogram.TotalCount(),
+		self.histogram.Max(),
+		self.histogram.Min(),
+		self.histogram.Mean(),
+		self.histogram.ValueAtQuantile(90),
+		self.histogram.ValueAtQuantile(99),
+		self.histogram.ValueAtQuantile(99.9),
+		self.histogram.ValueAtQuantile(99.99))
+}
+
+var (
+	Suffixes = []string{"th", "st", "nd", "rd", "th", "th", "th", "th", "th", "th"}
+)
+
+func ordinal(p int64) string {
+	switch p % 100 {
+	case 11, 12, 13:
+		return fmt.Sprintf("%dth", p)
+	default:
+		return fmt.Sprintf("%d%s", p, Suffixes[p%10])
+	}
+}
+
+// This is called from a main thread, on orderly termination.
+func (self *OneMeasurementHdrHistogram) Export(exporter MeasurementExporter) (err error) {
+	defer catch(&err)
+
+	if self.writer != nil {
+		self.writer.OutputHistogram(self.histogram)
+		self.file.Close()
+	}
+	name := self.GetName()
+	try(exporter.Write(name, "Operations", self.histogram.TotalCount()))
+	try(exporter.Write(name, "AverageLatency(us)", self.histogram.Mean()))
+	try(exporter.Write(name, "MinLatency(us)", self.histogram.Min()))
+	try(exporter.Write(name, "MaxLatency(us)", self.histogram.Max()))
+
+	for _, p := range self.percentiles {
+		try(exporter.Write(name, ordinal(p)+"PercentileLatency(us)", self.histogram.ValueAtQuantile(float64(p))))
+	}
+	return
 }
 
 // Delegates to 2 measurement instances.
@@ -438,7 +605,7 @@ func NewTwoInOneMeasurement(name string, thing1, thing2 OneMeasurement) *TwoInOn
 }
 
 // It appears latency is reported in microseconds.
-func (self *TwoInOneMeasurement) Measure(latency int) {
+func (self *TwoInOneMeasurement) Measure(latency int64) {
 	self.thing1.Measure(latency)
 	self.thing2.Measure(latency)
 }
@@ -451,7 +618,10 @@ func (self *TwoInOneMeasurement) GetSummary() string {
 }
 
 // This is called from a main goroutine, on orderly termination.
-func (self *TwoInOneMeasurement) Export(exporter MeasurementExporter) {
-	self.thing1.Export(exporter)
-	self.thing2.Export(exporter)
+func (self *TwoInOneMeasurement) Export(exporter MeasurementExporter) (err error) {
+	defer catch(&err)
+
+	try(self.thing1.Export(exporter))
+	try(self.thing2.Export(exporter))
+	return
 }

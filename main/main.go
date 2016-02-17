@@ -63,7 +63,7 @@ var (
 			Name:            "table",
 			HasArgument:     true,
 			HasDefaultValue: true,
-			DefaultValue:    PropertyTableDefault,
+			DefaultValue:    PropertyTableNameDefault,
 			Doc:             "use the table name instead of the default %s",
 		},
 		&Option{
@@ -113,7 +113,7 @@ positional arguments:
 optional arguments:
   -h, --help         show this help message and exit
 `
-	fmt.Fprintf(os.Stderr, usageFormat, ProgramName, DefaultTable)
+	fmt.Fprintf(os.Stderr, usageFormat, ProgramName, PropertyTableNameDefault)
 }
 
 func init() {
