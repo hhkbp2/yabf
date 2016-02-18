@@ -13,9 +13,10 @@ type UniformIntegerGenerator struct {
 // upperBound are possible values)
 func NewUniformIntegerGenerator(lowerBound, upperBound int64) *UniformIntegerGenerator {
 	return &UniformIntegerGenerator{
-		lowerBound: lowerBound,
-		upperBound: upperBound,
-		interval:   upperBound - lowerBound,
+		IntegerGeneratorBase: NewIntegerGeneratorBase(0),
+		lowerBound:           lowerBound,
+		upperBound:           upperBound,
+		interval:             upperBound - lowerBound,
 	}
 }
 

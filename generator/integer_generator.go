@@ -83,3 +83,42 @@ func (self *ConstantIntegerGenerator) NextString() string {
 func (self *ConstantIntegerGenerator) Mean() float64 {
 	return float64(self.NextInt())
 }
+
+// Generate a popularity distribution of items, skewed to favor recent items
+// significantly more than older items.
+type SkewedLatestGenerator struct {
+	*IntegerGeneratorBase
+	basis   *CounterGenerator
+	zipfian *ZipfianGenerator
+}
+
+func NewSkewedLatestGenerator(basis *CounterGenerator) *SkewedLatestGenerator {
+	min := int64(0)
+	max := basis.LastInt() - 1
+	zeta := zetaStatic(0, max-min+1, ZipfianConstant, 0)
+	zipfian := NewZipfianGenerator(min, max, ZipfianConstant, zeta)
+	object := &SkewedLatestGenerator{
+		IntegerGeneratorBase: NewIntegerGeneratorBase(min),
+		basis:                basis,
+		zipfian:              zipfian,
+	}
+	object.NextInt()
+	return object
+}
+
+// Generate the next value in the distribution, skewed Zipfian favoring
+// the items most recently returned by the basis generator.
+func (self *SkewedLatestGenerator) NextInt() int64 {
+	max := self.basis.LastInt()
+	nextInt := max - self.zipfian.Next(max)
+	self.SetLastInt(nextInt)
+	return nextInt
+}
+
+func (self *SkewedLatestGenerator) NextString() string {
+	return self.IntegerGeneratorBase.NextString(self)
+}
+
+func (self *SkewedLatestGenerator) Mean() float64 {
+	panic("can't compute mean of non-stationary distribution")
+}
