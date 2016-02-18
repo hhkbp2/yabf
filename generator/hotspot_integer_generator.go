@@ -1,5 +1,11 @@
 package generator
 
+// Generate integers resembling a hotspot distribution where x% of operations
+// access y% of data items. The parameters specify the bounds for the numbers,
+// the percentage of the interval which comprises the hot set and
+// the percentage of operations that access the hot set. Numbers of the host set
+// are always smaller than any number in the cold set. Elements from the hot set
+// and the cold set are chosen using a uniform distribution.
 type HotspotIntegerGenerator struct {
 	*IntegerGeneratorBase
 	lowerBound     int64
@@ -10,6 +16,7 @@ type HotspotIntegerGenerator struct {
 	hotOpnFraction float64
 }
 
+// Check the validation of value in range [0.0, 1.0].
 func checkFraction(value float64) float64 {
 	if value < 0.0 || value > 1.0 {
 		// Hotset fraction out of range
@@ -18,6 +25,7 @@ func checkFraction(value float64) float64 {
 	return value
 }
 
+// Create a generator for hotspot distribution.
 func NewHotspotIntegerGenerator(
 	lowerBound, upperBound int64,
 	hotsetFraction, hotOpnFraction float64) (*HotspotIntegerGenerator, error) {

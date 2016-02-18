@@ -5,11 +5,6 @@ import (
 	"math/rand"
 )
 
-const (
-	ExponentialPercentileDefault = "95"
-	ExponentialFractionDefault   = "0.8571428571" // 1/7
-)
-
 var (
 	random *rand.Rand
 )
@@ -18,19 +13,31 @@ func init() {
 	random = rand.New(rand.NewSource(rand.Int63()))
 }
 
+// Return a random int64 value.
 func NextInt64(n int64) int64 {
 	return random.Int63n(n)
 }
 
+// Return a random float64 value.
 func NextFloat64() float64 {
 	return math.Abs(random.Float64() / math.MaxFloat64)
 }
 
+// A generator of an Exponential distribution. It produces a sequence
+// of time intervals(integers) according to an exponential distribution.
+// Smaller intervals are more frequent than larger ones, and there is no
+// bound on the length of an interval. When you construct an instance of
+// this class, you specify a parameter gamma, which corresponds to the rate
+// at which events occur.
+// Alternatively, 1/gamma is the average length of an interval.
 type ExponentialGenerator struct {
 	*IntegerGeneratorBase
+	// The exponential constant to use.
 	gamma float64
 }
 
+// Create an exponential generator with a mean arrival rate of gamma.
+// (And half life of 1/gamma).
 func NewExponentialGeneratorByMean(mean float64) *ExponentialGenerator {
 	return &ExponentialGenerator{
 		IntegerGeneratorBase: NewIntegerGeneratorBase(0),
@@ -45,11 +52,9 @@ func NewExponentialGenerator(percentile, theRange float64) *ExponentialGenerator
 	}
 }
 
+// Generate the next item. This distribution will be skewed toward lower
+// integers; e.g. 0 will be the most popular, 1 the next most popular, etc.
 func (self *ExponentialGenerator) NextInt() int64 {
-	return self.NextLong()
-}
-
-func (self *ExponentialGenerator) NextLong() int64 {
 	next := int64(-math.Log(NextFloat64()) / self.gamma)
 	self.SetLastInt(next)
 	return next

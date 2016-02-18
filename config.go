@@ -8,18 +8,33 @@ const (
 	ConfigRandomizeDelay        = "basicdb.randomizedelay"
 	ConfigRandomizeDelayDefault = "true"
 
-	PropertyRecordCount        = "recordcount"
+	// The number of records to load into the database initially.
+	PropertyRecordCount = "recordcount"
+	// The default value of `PropertyRecordCount`
 	PropertyRecordCountDefault = "0"
-	PropertyOperationCount     = "operationcount"
-	PropertyWorkload           = "workload"
-	PropertyDB                 = "db"
-	PropertyExporter           = "exporter"
-	PropertyExportFile         = "exportfile"
-	PropertyThreadCount        = "threadcount"
-	PropertyInsertCount        = "insertcount"
-	PropertyTarget             = "target"
-	PropertyMaxExecutionTime   = "maxexecutiontime"
-	PropertyTransactions       = "dotransactions"
+	// The target number of operations to perform.
+	PropertyOperationCount = "operationcount"
+	// The workload class to be loaded.
+	PropertyWorkload = "workload"
+	// The database class to be used.
+	PropertyDB = "db"
+	// The exporter class to be used. The default is TestMeasurementExporter.
+	PropertyExporter = "exporter"
+	// If set to the path of a file, this file will be written instead of stdout.
+	PropertyExportFile = "exportfile"
+	// The number of client goroutines to run.
+	PropertyThreadCount = "threadcount"
+	// Indicates how many inserts to do, if less than `recordcount`.
+	// Useful for partitioning the load among multiple servers, if the Client
+	// is the bottleneck. Additionally, workloads should support the
+	// "insertstart" property, which tells them which record to start at.
+	PropertyInsertCount = "insertcount"
+	// Target number of opertions per second
+	PropertyTarget = "target"
+	// The maximum amount of time (in seconds) for which the benchmark will be run.
+	PropertyMaxExecutionTime = "maxexecutiontime"
+	// Whether or not this is the transaction phase (run) or not (load).
+	PropertyTransactions = "dotransactions"
 
 	// The name of the database table to run queries against.
 	PropertyTableName = "table"

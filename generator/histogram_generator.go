@@ -14,6 +14,12 @@ func NewErrorf(format string, args ...interface{}) error {
 	return errors.New(fmt.Sprintf(format, args...))
 }
 
+// Generate integers according to a histogram distribution. The histogram
+// buckets are of width one, but the values are multiplied by a block size.
+// Therefore, instead of drawing sizes uniformly at random within each bucket,
+// we always draw the largest value in the current bucket, so the value drawn
+// is always a multiple of blockSize.
+// The minimum value this distribution returns is blockSize(not zero).
 type HistogramGenerator struct {
 	*IntegerGeneratorBase
 	blockSize    int64
