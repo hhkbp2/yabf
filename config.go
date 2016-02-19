@@ -144,6 +144,12 @@ const (
 	PropertyMeasurementTypeDefault     = "hdrhistogram"
 	PropertyMeasurementInterval        = "measurement.interval"
 	PropertyMeasurementIntervalDefault = "op"
+
+	// Granularity for time series; measurements will be averaged in chunks of
+	// this granularity. Units are milliseconds.
+	PropertyGranularity        = "timeseries.granularity"
+	PropertyGranularityDefault = "1000"
+
 	// Optionally, user can configure an output file to save the raw
 	// data points. Default is none, raw results will be written to stdout.
 	OutputFilePath        = "measurement.raw.output_file"

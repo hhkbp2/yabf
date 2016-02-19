@@ -109,4 +109,5 @@ type CoreWorkload struct {
 	recordCount                  int
 	insertionRetryLimit          int
 	insertionRetryInterval       int
+	measurements                 Measurements
 }

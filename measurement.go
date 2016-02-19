@@ -66,6 +66,171 @@ type Measurements interface {
 	// Report a single value of a single metric. E.g. for read latency,
 	// operation="READ" and latency is the measured value.
 	MeasureIntended(operation string, latency int64)
+
+	// Return a one line summary of the measurements.
+	GetSummary() string
+
+	// Export the current measurements to a suitable format.
+	Export(exporter MeasurementExporter) error
+}
+
+type DefaultMeasurements struct {
+	props                     Properties
+	measurementType           MeasurementType
+	measurementInterval       int
+	opToMeasurementMap        map[string]OneMeasurement
+	opToIntendedMesurementMap map[string]OneMeasurement
+}
+
+func NewDefaultMeasurement(props Properties) *DefaultMeasurements {
+	opToMeasurementMap := make(map[string]OneMeasurement)
+	opToIntendedMesurementMap := make(map[string]OneMeasurement)
+	var measurementType MeasurementType
+	propStr := props.GetDefault(PropertyMeasurementType, PropertyMeasurementTypeDefault)
+	switch propStr {
+	case "histogram":
+		measurementType = MeasurementHistogram
+	case "hdrhistogram":
+		measurementType = MeasurementHDRHistogram
+	case "hdrhistogram+histogram":
+		measurementType = MeasurementHDRHistogramAndHistogram
+	case "hdrhistogram+raw":
+		measurementType = MeasurementHDRHistogramAndRaw
+	case "timeseries":
+		measurementType = MeasurementTimeSeries
+	case "raw":
+		measurementType = MeasurementRaw
+	default:
+		panic(fmt.Sprintf("unknown %s=%s", PropertyMeasurementType, propStr))
+	}
+
+	var measurementInterval int
+	propStr = props.GetDefault(PropertyMeasurementInterval, PropertyMeasurementIntervalDefault)
+	switch propStr {
+	case "op":
+		measurementInterval = 0
+	case "intended":
+		measurementInterval = 1
+	case "both":
+		measurementInterval = 2
+	default:
+		panic(fmt.Sprintf("unknown %s=%s", PropertyMeasurementInterval, propStr))
+	}
+	return &DefaultMeasurements{
+		props:                     props,
+		measurementType:           measurementType,
+		measurementInterval:       measurementInterval,
+		opToMeasurementMap:        opToMeasurementMap,
+		opToIntendedMesurementMap: opToIntendedMesurementMap,
+	}
+}
+
+func MustNewMeasurement(m OneMeasurement, err error) OneMeasurement {
+	if err != nil {
+		panic(fmt.Sprintf("unexpected error: %s", err))
+	}
+	return m
+}
+
+func (self *DefaultMeasurements) constructOneMeasurement(name string) OneMeasurement {
+	switch self.measurementType {
+	case MeasurementHistogram:
+		return MustNewMeasurement(NewOneMeasurementHistogram(name, self.props))
+	case MeasurementHDRHistogram:
+		return MustNewMeasurement(NewOneMeasurementHdrHistogram(name, self.props))
+	case MeasurementHDRHistogramAndHistogram:
+		return NewTwoInOneMeasurement(name,
+			MustNewMeasurement(NewOneMeasurementHdrHistogram("Hdr"+name, self.props)),
+			MustNewMeasurement(NewOneMeasurementHistogram("Bucket"+name, self.props)))
+	case MeasurementHDRHistogramAndRaw:
+		return NewTwoInOneMeasurement(name,
+			MustNewMeasurement(NewOneMeasurementHdrHistogram("Hdr"+name, self.props)),
+			MustNewMeasurement(NewOneMeasurementRaw("Raw"+name, self.props)))
+	case MeasurementTimeSeries:
+		return MustNewMeasurement(NewOneMeasurementTimeSeries(name, self.props))
+	default:
+		panic("impossible to be here. Dead code reached. Bugs?")
+	}
+}
+
+// Report a single value of a single metric. E.g. for read latency,
+// operation="READ" and latency is the measured value.
+func (self *DefaultMeasurements) Measure(operation string, latency int64) {
+	if self.measurementInterval == 0 {
+		return
+	}
+	m := self.getOpMeasurement(operation)
+	m.Measure(latency)
+}
+
+// Report a single value of a single metric. E.g. for read latency,
+// operation="READ" and latency is the measured value.
+func (self *DefaultMeasurements) MeasureIntended(operation string, latency int64) {
+	if self.measurementInterval == 0 {
+		return
+	}
+	m := self.getOpIntendedMeasurement(operation)
+	m.Measure(latency)
+}
+
+func (self *DefaultMeasurements) GetSummary() string {
+	var ret string
+	for _, m := range self.opToMeasurementMap {
+		ret += m.GetSummary()
+	}
+	for _, m := range self.opToIntendedMesurementMap {
+		ret += m.GetSummary()
+	}
+	return ret
+}
+
+func (self *DefaultMeasurements) Export(exporter MeasurementExporter) (err error) {
+	defer catch(&err)
+	for _, m := range self.opToMeasurementMap {
+		try(m.Export(exporter))
+	}
+	for _, m := range self.opToIntendedMesurementMap {
+		try(m.Export(exporter))
+	}
+	return
+}
+
+func (self *DefaultMeasurements) getOpMeasurement(operation string) OneMeasurement {
+	m, ok := self.opToMeasurementMap[operation]
+	if !ok {
+		m = self.constructOneMeasurement(operation)
+		self.opToMeasurementMap[operation] = m
+	}
+	return m
+}
+
+func (self *DefaultMeasurements) getOpIntendedMeasurement(operation string) OneMeasurement {
+	m, ok := self.opToIntendedMesurementMap[operation]
+	if !ok {
+		m = self.constructOneMeasurement(operation)
+		self.opToIntendedMesurementMap[operation] = m
+	}
+	return m
+}
+
+var (
+	measurementProperties Properties = NewProperties()
+	singleton             Measurements
+)
+
+func SetMeasurementProperties(props Properties) {
+	measurementProperties = props
+}
+
+func GetMeasurementProperties() Properties {
+	return measurementProperties
+}
+
+func GetMeasurements() Measurements {
+	if singleton == nil {
+		singleton = NewDefaultMeasurement(measurementProperties)
+	}
+	return singleton
 }
 
 // Write human readable text. Tries to emulate the previous print report method.
@@ -332,6 +497,116 @@ func (self *OneMeasurementRaw) Export(exporter MeasurementExporter) (err error) 
 		try(exporter.Write(name, "p99", s[int(float64(total)*0.99)].value))
 		try(exporter.Write(name, "p99.9", s[int(float64(total)*0.999)].value))
 		try(exporter.Write(name, "p99.99", s[int(float64(total)*0.9999)].value))
+	}
+	return
+}
+
+type SeriesUnit struct {
+	Time    int64
+	Average float64
+}
+
+func NewSeriesUnit(t int64, average float64) *SeriesUnit {
+	return &SeriesUnit{
+		Time:    t,
+		Average: average,
+	}
+}
+
+// A time series measurement of a metric, such as READ LATENCY.
+type OneMeasurementTimeSeries struct {
+	*OneMeasurementBase
+	granularity          int64
+	measurements         []*SeriesUnit
+	start                int64
+	currentUnit          int64
+	count                int
+	sum                  int64
+	operations           int
+	totalLatency         int64
+	windowOperations     int
+	windowToTotalLatency int64
+	min                  int64
+	max                  int64
+}
+
+func NewOneMeasurementTimeSeries(name string, props Properties) (*OneMeasurementTimeSeries, error) {
+	propStr := props.GetDefault(PropertyGranularity, PropertyGranularityDefault)
+	granularity, err := strconv.ParseInt(propStr, 0, 64)
+	if err != nil {
+		return nil, err
+	}
+	object := &OneMeasurementTimeSeries{
+		OneMeasurementBase: NewOneMeasurementBase(name),
+		granularity:        int64(granularity),
+		measurements:       make([]*SeriesUnit, 0),
+		start:              -1,
+		currentUnit:        -1,
+		min:                -1,
+		max:                -1,
+	}
+	return object, nil
+}
+
+func NanoToMillis(nano int64) int64 {
+	return nano / 1000000
+}
+
+func (self *OneMeasurementTimeSeries) CheckEndOfUnit(forceEnd bool) {
+	now := NanoToMillis(time.Now().UnixNano())
+	if self.start < 0 {
+		self.currentUnit = 0
+		self.start = now
+	}
+
+	unit := (now - self.start) / self.granularity * self.granularity
+	if (unit > self.currentUnit) || forceEnd {
+		average := float64(self.sum) / float64(self.count)
+		self.measurements = append(self.measurements, NewSeriesUnit(self.currentUnit, average))
+		self.currentUnit = unit
+		self.count = 0
+		self.sum = 0
+	}
+}
+
+func (self *OneMeasurementTimeSeries) Measure(latency int64) {
+	self.CheckEndOfUnit(false)
+	self.count++
+	self.sum += latency
+	self.totalLatency += latency
+	self.operations++
+	self.windowOperations++
+	self.windowToTotalLatency += latency
+
+	if latency > self.max {
+		self.max = latency
+	}
+	if (latency < self.min) || (self.min < 0) {
+		self.min = latency
+	}
+}
+
+func (self *OneMeasurementTimeSeries) GetSummary() string {
+	if self.windowOperations == 0 {
+		return ""
+	}
+	report := float64(self.windowToTotalLatency) / float64(self.windowOperations)
+	self.windowToTotalLatency = 0
+	self.windowOperations = 0
+	return fmt.Sprintf("[%s AverageLatency(us)=%.2g]", self.GetName(), report)
+}
+
+func (self *OneMeasurementTimeSeries) Export(exporter MeasurementExporter) (err error) {
+	defer catch(&err)
+	self.CheckEndOfUnit(true)
+	name := self.GetName()
+	try(exporter.Write(name, "Operations", self.operations))
+	try(exporter.Write(name, "AverageLatency(us)", float64(self.totalLatency)/float64(self.operations)))
+	try(exporter.Write(name, "MinLatency(us)", self.min))
+	try(exporter.Write(name, "MaxLatency(us)", self.max))
+
+	for _, unit := range self.measurements {
+		try(exporter.Write(name, fmt.Sprintf("%d", unit.Time), unit.Average))
 	}
 	return
 }
