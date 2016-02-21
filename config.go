@@ -1,6 +1,7 @@
 package yabf
 
 const (
+	// BasicDB
 	ConfigBasicDBVerbose        = "basicdb.verbose"
 	ConfigBasicDBVerboseDefault = "true"
 	ConfigSimulateDelay         = "basicdb.simulatedelay"
@@ -8,6 +9,7 @@ const (
 	ConfigRandomizeDelay        = "basicdb.randomizedelay"
 	ConfigRandomizeDelayDefault = "true"
 
+	// Client
 	// The number of records to load into the database initially.
 	PropertyRecordCount = "recordcount"
 	// The default value of `PropertyRecordCount`
@@ -36,6 +38,7 @@ const (
 	// Whether or not this is the transaction phase (run) or not (load).
 	PropertyTransactions = "dotransactions"
 
+	// workload
 	// The name of the database table to run queries against.
 	PropertyTableName = "table"
 	// The default value of `PropertyTableName`
@@ -139,6 +142,10 @@ const (
 	// The default value of `InsertionRetryInterval`
 	InsertionRetryIntervalDefault = "3"
 
+	// Workload
+	PropertyInsertStart        = "insertstart"
+	PropertyInsertStartDefault = "0"
+
 	// measurement
 	PropertyMeasurementType            = "measurementtype"
 	PropertyMeasurementTypeDefault     = "hdrhistogram"
@@ -178,4 +185,14 @@ const (
 	PropertyHdrHistogramOutputPath    = "hdrhistogram.output.path"
 	// The default value of `PropertyHdrHistogramOutputPath`
 	PropertyHdrHistogramOutputPathDefault = ""
+
+	// generator
+	// What percentage of the readings should be within the most recent
+	// exponential.fracportion of the dataset?
+	PropertyExponentialPercentile        = "exponential.percentile"
+	PropertyExponentialPercentileDefault = "95"
+	// What fraction of the dataset should be accessed exponential.percentile
+	// of the time?
+	PropertyExponentialFraction        = "exponential.frac"
+	PropertyExponentialFractionDefault = "0.8571428571" // 1/7
 )

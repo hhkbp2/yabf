@@ -93,12 +93,9 @@ type SkewedLatestGenerator struct {
 }
 
 func NewSkewedLatestGenerator(basis *CounterGenerator) *SkewedLatestGenerator {
-	min := int64(0)
-	max := basis.LastInt() - 1
-	zeta := zetaStatic(0, max-min+1, ZipfianConstant, 0)
-	zipfian := NewZipfianGenerator(min, max, ZipfianConstant, zeta)
+	zipfian := NewZipfianGeneratorByInterval(0, basis.LastInt()-1)
 	object := &SkewedLatestGenerator{
-		IntegerGeneratorBase: NewIntegerGeneratorBase(min),
+		IntegerGeneratorBase: NewIntegerGeneratorBase(0),
 		basis:                basis,
 		zipfian:              zipfian,
 	}

@@ -92,6 +92,12 @@ type ZipfianGenerator struct {
 	allowItemCountDecrease bool
 }
 
+// Create a zipfian generator for items between min and max(inclusive).
+func NewZipfianGeneratorByInterval(min, max int64) *ZipfianGenerator {
+	zeta := zetaStatic(min, max-min+1, ZipfianConstant, 0)
+	return NewZipfianGenerator(min, max, ZipfianConstant, zeta)
+}
+
 // Create a zipfian generator for items between min and max(inclusive) for
 // the specified zipfian constant, using the precomputed value of zeta.
 func NewZipfianGenerator(
@@ -122,13 +128,24 @@ func NewZipfianGenerator(
 	return object
 }
 
-// Generate the next item. this distribution will be skewed toward
-// lower itegers; e.g. 0 will be the most popular, 1 the next most popular, etc.
+// Return the next value, skewed by the zipfian distribution. The 0th item will
+// be the most popular, followed by the 1st, followed by the 2nd, etc.
+// (or, if min != 0, the min-th item is the most popular, the min+1th item
+// the next most popular, etc.) If you want the popular items
+// scattered throughout the item space, use ScrambledZipfianGenerator instead.
 func (self *ZipfianGenerator) NextInt() int64 {
 	return self.Next(self.items)
 }
 
-// Generate the next item as a int64.
+// Return the next value, skewed by the zipfian distribution. The 0th item will
+// be the most popular, followed by the 1st, followed by the 2nd, etc.
+// (same as NextInt())
+func (self *ZipfianGenerator) NextLong() int64 {
+	return self.Next(self.items)
+}
+
+// Generate the next item. this distribution will be skewed toward
+// lower itegers; e.g. 0 will be the most popular, 1 the next most popular, etc.
 func (self *ZipfianGenerator) Next(itemCount int64) int64 {
 	if itemCount != self.countForzata {
 		if itemCount > self.countForzata {
@@ -153,6 +170,131 @@ func (self *ZipfianGenerator) Next(itemCount int64) int64 {
 	return ret
 }
 
+func (self *ZipfianGenerator) NextString() string {
+	return self.IntegerGeneratorBase.NextString(self)
+}
+
 func (self *ZipfianGenerator) Mean() float64 {
 	panic("unsupported operation")
+}
+
+var (
+	Zetan               = float64(26.46902820178302)
+	UsedZipfianConstant = float64(0.99)
+	ItemCount           = float64(10000000000)
+)
+
+// A generator of a zipfian distribution. It produces a sequence of items,
+// such that some items are more popular than others, according to a zipfian
+// distribution. When you construct an instance of this class, you specify
+// the number of items in the set to draw from, either by specifying
+// an itemCount(so that the sequence is of items from 0 to itemCount-1) or
+// by specifying a min and a max (so that the sequence is of items from min
+// to max inclusive). After you construct the instance, you can change
+// the number of items by calling NextInt(itemCount) or Next(itemCount).
+// Unlike ZipfianGenerator, this class scatters the "popular" items across
+// the item space. Use this, instead of ZipfianGenerator, if you don't want
+// the head of the distribution(the popular items) clustered together.
+type ScrambledZipfianGenerator struct {
+	*IntegerGeneratorBase
+	gen       *ZipfianGenerator
+	min       int64
+	max       int64
+	itemCount int64
+}
+
+// Create a zipfian generator for the specified number of items.
+func NewScrambledZipfianGeneratorByItems(items int64) *ScrambledZipfianGenerator {
+	return NewScrambledZipfianGenerator(0, items-1)
+}
+
+// Create a zipfian generator for items between min and max (inclusive) for
+// the specified zipfian constant. If you use a zipfian constant other than
+// 0.99, this will take a long time complete because we need to recompute
+// zeta.
+func NewScrambledZipfianGeneratorConstant(min, max int64, constant float64) *ScrambledZipfianGenerator {
+	var gen *ZipfianGenerator
+	itemCount := max - min + 1
+	if constant == UsedZipfianConstant {
+		gen = NewZipfianGenerator(0, itemCount, constant, Zetan)
+	} else {
+		zeta := zetaStatic(0, itemCount, constant, 0)
+		gen = NewZipfianGenerator(0, itemCount, constant, zeta)
+	}
+	return &ScrambledZipfianGenerator{
+		IntegerGeneratorBase: NewIntegerGeneratorBase(min),
+		gen:                  gen,
+		min:                  min,
+		max:                  max,
+		itemCount:            max - min + 1,
+	}
+}
+
+// Create a zipfian generator for items between min and max(inclusive).
+func NewScrambledZipfianGenerator(min, max int64) *ScrambledZipfianGenerator {
+	return NewScrambledZipfianGeneratorConstant(min, max, ZipfianConstant)
+}
+
+// Return the next int in the sequence.
+func (self *ScrambledZipfianGenerator) NextInt() int64 {
+	return self.Next()
+}
+
+// return the next item in the sequence.
+func (self *ScrambledZipfianGenerator) Next() int64 {
+	ret := self.gen.NextLong()
+	ret = self.min + int64(math.Abs(float64(FNVHash64(uint64(ret)))))%self.itemCount
+	self.SetLastInt(ret)
+	return ret
+}
+
+func (self *ScrambledZipfianGenerator) NextString() string {
+	return self.IntegerGeneratorBase.NextString(self)
+}
+
+// Since the values are scrambed (hopefully uniformly), the mean is simply
+// the middle of the range.
+func (self *ScrambledZipfianGenerator) Mean() float64 {
+	return float64(self.min+self.max) / 2.0
+}
+
+// Hash a integer value.
+func Hash(value uint) uint64 {
+	return FNVHash64(uint64(value))
+}
+
+const (
+	FNVOffsetBasis32 = uint32(0x811c9dc5)
+	FNVPrime32       = uint32(16777619)
+)
+
+func FNVHash32(value uint32) uint32 {
+	hash := FNVOffsetBasis32
+	for i := 0; i < 4; i++ {
+		octet := value & 0x00FF
+		value >>= 8
+
+		hash ^= octet
+		hash *= FNVPrime32
+	}
+	return hash
+}
+
+const (
+	FNVOffsetBasis64 = uint64(0xCBF29CE484222325)
+	FNVPrime64       = uint64(1099511628211)
+)
+
+// 64 bit FNV hash.
+func FNVHash64(value uint64) uint64 {
+	// from http://en.wikipedia.org/wiki/Fowler_Noll_Vo_hash
+	hash := FNVOffsetBasis64
+	for i := 0; i < 8; i++ {
+		octet := value & 0x00FF
+		value >>= 8
+
+		hash ^= octet
+		hash *= FNVPrime64
+	}
+	return hash
 }
