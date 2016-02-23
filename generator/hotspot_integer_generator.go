@@ -28,7 +28,7 @@ func checkFraction(value float64) float64 {
 // Create a generator for hotspot distribution.
 func NewHotspotIntegerGenerator(
 	lowerBound, upperBound int64,
-	hotsetFraction, hotOpnFraction float64) (*HotspotIntegerGenerator, error) {
+	hotsetFraction, hotOpnFraction float64) *HotspotIntegerGenerator {
 	// check whether hostset fraction is out of range
 	hotsetFraction = checkFraction(hotsetFraction)
 	// check whether hot operation fraction is out of range
@@ -40,7 +40,7 @@ func NewHotspotIntegerGenerator(
 	}
 	interval := upperBound - lowerBound + 1
 	hotInterval := int64(float64(interval) * hotsetFraction)
-	object := &HotspotIntegerGenerator{
+	return &HotspotIntegerGenerator{
 		IntegerGeneratorBase: NewIntegerGeneratorBase(0),
 		lowerBound:           lowerBound,
 		upperBound:           upperBound,
@@ -49,7 +49,6 @@ func NewHotspotIntegerGenerator(
 		hotsetFraction:       hotsetFraction,
 		hotOpnFraction:       hotOpnFraction,
 	}
-	return object, nil
 }
 
 func (self *HotspotIntegerGenerator) NextInt() int64 {

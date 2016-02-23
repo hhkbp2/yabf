@@ -49,24 +49,24 @@ type DB interface {
 
 	// Read a record from the database.
 	// Each field/value pair from the result will be returned.
-	Read(table string, key Binary, fields []Binary) (KVMap, error)
+	Read(table string, key string, fields []string) (KVMap, error)
 
 	// Perform a range scan for a set of records in the database.
 	// Each field/value pair from the result will be returned.
-	Scan(table string, startKey Binary, recordCount int, fields []Binary) (KVMap, error)
+	Scan(table string, startKey string, recordCount int64, fields []string) (KVMap, error)
 
 	// Update a record in the database.
 	// Any field/value pairs in the specified values will be written into
 	// the record with the specified record key, overwriting any existing
 	// values with the same field name.
-	Update(table string, key Binary, values KVMap) error
+	Update(table string, key string, values KVMap) error
 
 	// Insert a record in the database. Any field/value pairs in the specified
 	// values will be written into the record with the specified record key.
-	Insert(table string, key Binary, values KVMap) error
+	Insert(table string, key string, values KVMap) error
 
 	// Delete a reord from the database.
-	Delete(table string, key Binary) error
+	Delete(table string, key string) error
 }
 
 type DBBase struct {

@@ -259,7 +259,7 @@ func (self *ScrambledZipfianGenerator) Mean() float64 {
 }
 
 // Hash a integer value.
-func Hash(value uint) uint64 {
+func Hash(value int64) uint64 {
 	return FNVHash64(uint64(value))
 }
 

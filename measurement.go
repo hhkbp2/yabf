@@ -27,6 +27,42 @@ const (
 	MeasurementRaw
 )
 
+type StatusType uint8
+
+const (
+	StatusOK StatusType = 1 + iota
+	StatusError
+	StatusNotFound
+	StatusNotImplemented
+	StatusUnexpectedState
+	StatusBadRequest
+	StatusForbidden
+	StatusServiceUnavailable
+)
+
+func (self StatusType) String() string {
+	switch self {
+	case StatusOK:
+		return "OK"
+	case StatusError:
+		return "ERROR"
+	case StatusNotFound:
+		return "NOT_FOUND"
+	case StatusNotImplemented:
+		return "NOT_IMPLEMENTED"
+	case StatusUnexpectedState:
+		return "UNEXPECTED_STATE"
+	case StatusBadRequest:
+		return "BAD_REQUEST"
+	case StatusForbidden:
+		return "FORBIDDEN"
+	case StatusServiceUnavailable:
+		return "SERVICE_UNAVAILABLE"
+	default:
+		return "UNKNOW_STATUS"
+	}
+}
+
 // Used to export the collected measuremrnts into a usefull format, for example
 // human readable text or machine readable JSON.
 type MeasurementExporter interface {
@@ -40,17 +76,21 @@ type OneMeasurement interface {
 	Measure(latency int64)
 	GetName() string
 	GetSummary() string
-	// Export the current measurements to a suitable format.
-	Export(exporter MeasurementExporter) error
+	// Report a return code.
+	ReportStatus(status StatusType)
+	// Exports the current measurements to a suitable format.
+	ExportMeasurements(exporter MeasurementExporter) error
 }
 
 type OneMeasurementBase struct {
-	Name string
+	Name        string
+	ReturnCodes map[StatusType]uint32
 }
 
 func NewOneMeasurementBase(name string) *OneMeasurementBase {
 	return &OneMeasurementBase{
-		Name: name,
+		Name:        name,
+		ReturnCodes: make(map[StatusType]uint32),
 	}
 }
 
@@ -58,8 +98,27 @@ func (self *OneMeasurementBase) GetName() string {
 	return self.Name
 }
 
+func (self *OneMeasurementBase) ReportStatus(status StatusType) {
+	count, _ := self.ReturnCodes[status]
+	self.ReturnCodes[status] = count + 1
+}
+
+func (self *OneMeasurementBase) ExportStatusCounts(exporter MeasurementExporter) error {
+	var err error
+	for status, count := range self.ReturnCodes {
+		err = exporter.Write(self.GetName(), fmt.Sprintf("Return=%s", status), count)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Collects latency measurements, and reports them when requested.
 type Measurements interface {
+	SetIntendedStartTime(t int64)
+	GetIntendedStartTime() int64
+
 	// Report a single value of a single metric. E.g. for read latency,
 	// operation="READ" and latency is the measured value.
 	Measure(operation string, latency int64)
@@ -70,8 +129,11 @@ type Measurements interface {
 	// Return a one line summary of the measurements.
 	GetSummary() string
 
+	// Report a return code for a single DB operation.
+	ReportStatus(operation string, status StatusType)
+
 	// Export the current measurements to a suitable format.
-	Export(exporter MeasurementExporter) error
+	ExportMeasurements(exporter MeasurementExporter) error
 }
 
 type DefaultMeasurements struct {
@@ -80,6 +142,7 @@ type DefaultMeasurements struct {
 	measurementInterval       int
 	opToMeasurementMap        map[string]OneMeasurement
 	opToIntendedMesurementMap map[string]OneMeasurement
+	intendedStartTime         int64
 }
 
 func NewDefaultMeasurement(props Properties) *DefaultMeasurements {
@@ -153,6 +216,24 @@ func (self *DefaultMeasurements) constructOneMeasurement(name string) OneMeasure
 	}
 }
 
+func (self *DefaultMeasurements) SetIntendedStartTime(t int64) {
+	if self.measurementInterval == 0 {
+		return
+	}
+	self.intendedStartTime = t
+}
+
+func (self *DefaultMeasurements) GetIntendedStartTime() int64 {
+	if self.measurementInterval == 0 {
+		return 0
+	}
+	if self.intendedStartTime == 0 {
+		return time.Now().UnixNano()
+	} else {
+		return self.intendedStartTime
+	}
+}
+
 // Report a single value of a single metric. E.g. for read latency,
 // operation="READ" and latency is the measured value.
 func (self *DefaultMeasurements) Measure(operation string, latency int64) {
@@ -184,13 +265,23 @@ func (self *DefaultMeasurements) GetSummary() string {
 	return ret
 }
 
-func (self *DefaultMeasurements) Export(exporter MeasurementExporter) (err error) {
+func (self *DefaultMeasurements) ReportStatus(operation string, status StatusType) {
+	var m OneMeasurement
+	if self.measurementInterval == 1 {
+		m = self.getOpIntendedMeasurement(operation)
+	} else {
+		m = self.getOpMeasurement(operation)
+	}
+	m.ReportStatus(status)
+}
+
+func (self *DefaultMeasurements) ExportMeasurements(exporter MeasurementExporter) (err error) {
 	defer catch(&err)
 	for _, m := range self.opToMeasurementMap {
-		try(m.Export(exporter))
+		try(m.ExportMeasurements(exporter))
 	}
 	for _, m := range self.opToIntendedMesurementMap {
-		try(m.Export(exporter))
+		try(m.ExportMeasurements(exporter))
 	}
 	return
 }
@@ -457,7 +548,7 @@ func catch(err *error) {
 	}
 }
 
-func (self *OneMeasurementRaw) Export(exporter MeasurementExporter) (err error) {
+func (self *OneMeasurementRaw) ExportMeasurements(exporter MeasurementExporter) (err error) {
 	defer catch(&err)
 	// Output raw data points first then print out a summary of percentiles.
 	tryn(self.file.WriteString(fmt.Sprintf(
@@ -498,6 +589,7 @@ func (self *OneMeasurementRaw) Export(exporter MeasurementExporter) (err error) 
 		try(exporter.Write(name, "p99.9", s[int(float64(total)*0.999)].value))
 		try(exporter.Write(name, "p99.99", s[int(float64(total)*0.9999)].value))
 	}
+	try(self.ExportStatusCounts(exporter))
 	return
 }
 
@@ -596,7 +688,7 @@ func (self *OneMeasurementTimeSeries) GetSummary() string {
 	return fmt.Sprintf("[%s AverageLatency(us)=%.2g]", self.GetName(), report)
 }
 
-func (self *OneMeasurementTimeSeries) Export(exporter MeasurementExporter) (err error) {
+func (self *OneMeasurementTimeSeries) ExportMeasurements(exporter MeasurementExporter) (err error) {
 	defer catch(&err)
 	self.CheckEndOfUnit(true)
 	name := self.GetName()
@@ -605,6 +697,7 @@ func (self *OneMeasurementTimeSeries) Export(exporter MeasurementExporter) (err 
 	try(exporter.Write(name, "MinLatency(us)", self.min))
 	try(exporter.Write(name, "MaxLatency(us)", self.max))
 
+	try(self.ExportStatusCounts(exporter))
 	for _, unit := range self.measurements {
 		try(exporter.Write(name, fmt.Sprintf("%d", unit.Time), unit.Average))
 	}
@@ -683,7 +776,7 @@ func (self *OneMeasurementHistogram) GetSummary() string {
 	return fmt.Sprintf("[%s AverageLatency(us)=%.2d]", self.GetName(), report)
 }
 
-func (self *OneMeasurementHistogram) Export(exporter MeasurementExporter) (err error) {
+func (self *OneMeasurementHistogram) ExportMeasurements(exporter MeasurementExporter) (err error) {
 	defer catch(&err)
 	mean := float64(self.totalLatency) / float64(self.operations)
 	variance := self.totalSquaredLatency/float64(self.operations) - math.Pow(mean, 2.0)
@@ -707,6 +800,8 @@ func (self *OneMeasurementHistogram) Export(exporter MeasurementExporter) (err e
 			break
 		}
 	}
+
+	try(self.ExportStatusCounts(exporter))
 
 	for i := int64(0); i < self.buckets; i++ {
 		try(exporter.Write(name, fmt.Sprintf("%d", i), self.histogram[i]))
@@ -845,7 +940,7 @@ func ordinal(p int64) string {
 }
 
 // This is called from a main thread, on orderly termination.
-func (self *OneMeasurementHdrHistogram) Export(exporter MeasurementExporter) (err error) {
+func (self *OneMeasurementHdrHistogram) ExportMeasurements(exporter MeasurementExporter) (err error) {
 	defer catch(&err)
 
 	if self.writer != nil {
@@ -861,6 +956,7 @@ func (self *OneMeasurementHdrHistogram) Export(exporter MeasurementExporter) (er
 	for _, p := range self.percentiles {
 		try(exporter.Write(name, ordinal(p)+"PercentileLatency(us)", self.histogram.ValueAtQuantile(float64(p))))
 	}
+	try(self.ExportStatusCounts(exporter))
 	return
 }
 
@@ -893,10 +989,10 @@ func (self *TwoInOneMeasurement) GetSummary() string {
 }
 
 // This is called from a main goroutine, on orderly termination.
-func (self *TwoInOneMeasurement) Export(exporter MeasurementExporter) (err error) {
+func (self *TwoInOneMeasurement) ExportMeasurements(exporter MeasurementExporter) (err error) {
 	defer catch(&err)
 
-	try(self.thing1.Export(exporter))
-	try(self.thing2.Export(exporter))
+	try(self.thing1.ExportMeasurements(exporter))
+	try(self.thing2.ExportMeasurements(exporter))
 	return
 }
