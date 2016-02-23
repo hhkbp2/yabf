@@ -2,6 +2,7 @@ package yabf
 
 import (
 	"errors"
+	g "github.com/hhkbp2/yabf/generator"
 )
 
 var (
@@ -39,6 +40,12 @@ type KVMap map[string]Binary
 // target application.  For the sake of comparison between experiments we also
 // recommend you explain the semantics you chose when presenting performance results.
 type DB interface {
+	// Set the properties for this DB.
+	SetProperties(p Properties)
+
+	// Get the properties for this DB.
+	GetProperties() Properties
+
 	// Initialize any state for this DB.
 	// Called once per DB instance; there is one DB instance per client routine.
 	Init() error
@@ -83,4 +90,14 @@ func (self *DBBase) SetProperties(p Properties) {
 
 func (self *DBBase) GetProperties() Properties {
 	return self.p
+}
+
+func NewDB(database string, props Properties) (DB, error) {
+	f, ok := Databases[database]
+	if !ok {
+		return nil, g.NewErrorf("unsupported database")
+	}
+	db := f()
+	db.SetProperties(props)
+	return db, nil
 }

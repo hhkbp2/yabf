@@ -59,8 +59,8 @@ func RandomBytes(length int64) []byte {
 }
 
 func Output(format string, args ...interface{}) {
-	fmt.Printf(format, args...)
-	fmt.Println("")
+	fmt.Fprintf(OutputDest, format, args...)
+	fmt.Fprintln(OutputDest, "")
 }
 
 func OutputProperties(p Properties) {

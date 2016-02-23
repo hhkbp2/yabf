@@ -2,8 +2,9 @@ package yabf
 
 import (
 	"fmt"
-	"github.com/hhkbp2/yabf/generator"
+	g "github.com/hhkbp2/yabf/generator"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -11,22 +12,12 @@ func MillisecondToNanosecond(millis int64) int64 {
 	return millis * 1000 * 1000
 }
 
-func ConcatFieldsStr(fields []Binary) string {
-	var ret string
+func ConcatFieldsStr(fields []string) string {
 	if len(fields) > 0 {
-		afterFirst := false
-		for _, f := range fields {
-			if afterFirst {
-				ret += ", "
-			} else {
-				afterFirst = true
-			}
-			ret += string(f)
-		}
+		return strings.Join(fields, ", ")
 	} else {
-		ret = "<all fields>"
+		return "<all fields>"
 	}
-	return ret
 }
 
 func ConcatKVStr(values KVMap) string {
@@ -60,7 +51,7 @@ func (self *BasicDB) Delay() {
 	if self.toDelay > 0 {
 		var nanos int64
 		if self.randomizeDelay {
-			nanos = MillisecondToNanosecond(generator.NextInt64(self.toDelay))
+			nanos = MillisecondToNanosecond(g.NextInt64(self.toDelay))
 			if nanos == 0 {
 				return
 			}
@@ -97,39 +88,43 @@ func (self *BasicDB) Init() error {
 	return nil
 }
 
+func (self *BasicDB) Cleanup() error {
+	// do nothing
+	return nil
+}
+
 // Read a record from the database.
-func (self *BasicDB) Read(table string, key Binary, fields []Binary) (KVMap, error) {
+func (self *BasicDB) Read(table string, key string, fields []string) (KVMap, error) {
 	self.Delay()
 	if self.verbose {
-		Output("READ %s %s [%s]", table, string(key), ConcatFieldsStr(fields))
+		Output("READ %s %s [%s]", table, key, ConcatFieldsStr(fields))
 	}
 	return nil, nil
 }
 
 // Perform a range scan for a set of records in the database.
-func (self *BasicDB) Scan(table string, startKey Binary, recordCount int, fields []Binary) (KVMap, error) {
+func (self *BasicDB) Scan(table string, startKey string, recordCount int64, fields []string) (KVMap, error) {
 	self.Delay()
 	if self.verbose {
-		Output("SCAN %s %s %d [%s]",
-			table, string(startKey), recordCount, ConcatFieldsStr(fields))
+		Output("SCAN %s %s %d [%s]", table, string(startKey), recordCount, ConcatFieldsStr(fields))
 	}
 	return nil, nil
 }
 
 // Update a record in the database.
-func (self *BasicDB) Update(table string, key Binary, values KVMap) error {
+func (self *BasicDB) Update(table string, key string, values KVMap) error {
 	self.Delay()
 	if self.verbose {
-		Output("UPDATE %s %s [%s]", table, string(key), ConcatKVStr(values))
+		Output("UPDATE %s %s [%s]", table, key, ConcatKVStr(values))
 	}
 	return nil
 }
 
 // Insert a record in the database.
-func (self *BasicDB) Insert(table string, key Binary, values KVMap) error {
+func (self *BasicDB) Insert(table string, key string, values KVMap) error {
 	self.Delay()
 	if self.verbose {
-		Output("INSERT %s %s [%s]", table, string(key), ConcatKVStr(values))
+		Output("INSERT %s %s [%s]", table, key, ConcatKVStr(values))
 	}
 	return nil
 }
@@ -138,7 +133,7 @@ func (self *BasicDB) Insert(table string, key Binary, values KVMap) error {
 func (self *BasicDB) Delete(table string, key string) error {
 	self.Delay()
 	if self.verbose {
-		Output("DELETE %s %s", table, string(key))
+		Output("DELETE %s %s", table, key)
 	}
 	return nil
 }
