@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/codahale/hdrhistogram"
+	g "github.com/hhkbp2/yabf/generator"
 	"io"
 	"math"
 	"os"
@@ -69,6 +70,35 @@ type MeasurementExporter interface {
 	// Write a measurement to the exported format. v should be int64 or float64
 	Write(metric string, measurement string, v interface{}) error
 	io.Closer
+}
+
+type MakeMeasurementExporterFunc func(w io.WriteCloser) MeasurementExporter
+
+var (
+	MeasurementExporters map[string]MakeMeasurementExporterFunc
+)
+
+func init() {
+	MeasurementExporters = map[string]MakeMeasurementExporterFunc{
+		"TextMeasurementExporter": func(w io.WriteCloser) MeasurementExporter {
+			return NewTextMeasurementExporter(w)
+		},
+		"JSONMeasurementExporter": func(w io.WriteCloser) MeasurementExporter {
+			return NewJSONMeasurementExporter(w)
+		},
+		"JSONArrayMeasurementExporter": func(w io.WriteCloser) MeasurementExporter {
+			return NewJSONArrayMeasurementExporter(w)
+		},
+	}
+}
+
+func NewMeasurementExporter(className string, w io.WriteCloser) (MeasurementExporter, error) {
+	f, ok := MeasurementExporters[className]
+	if !ok {
+		return nil, g.NewErrorf("unsupported measurement exporter: %s", className)
+	}
+	e := f(w)
+	return e, nil
 }
 
 // A single measured metric (such as READ LATENCY)

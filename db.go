@@ -95,7 +95,7 @@ func (self *DBBase) GetProperties() Properties {
 func NewDB(database string, props Properties) (DB, error) {
 	f, ok := Databases[database]
 	if !ok {
-		return nil, g.NewErrorf("unsupported database")
+		return nil, g.NewErrorf("unsupported database: %s", database)
 	}
 	db := f()
 	db.SetProperties(props)

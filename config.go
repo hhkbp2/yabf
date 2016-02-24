@@ -21,7 +21,8 @@ const (
 	// The database class to be used.
 	PropertyDB = "db"
 	// The exporter class to be used. The default is TestMeasurementExporter.
-	PropertyExporter = "exporter"
+	PropertyExporter        = "exporter"
+	PropertyExporterDefault = "TextMeasurementExporter"
 	// If set to the path of a file, this file will be written instead of stdout.
 	PropertyExportFile = "exportfile"
 	// The number of client goroutines to run.

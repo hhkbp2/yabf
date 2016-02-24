@@ -41,6 +41,42 @@ func (self *Runner) Main() {
 	// TODO to impl
 }
 
+func checkRequiredProperties(props Properties) bool {
+	workload, ok := props[PropertyWorkload]
+	if (!ok) || (len(workload) == 0) {
+		Println("Missing property: %s", PropertyWorkload)
+		return false
+	}
+	return true
+}
+
+func exportMeasurements(props Properties, opCount, runtime int64) error {
+	var f *os.File
+	propStr, ok := props[PropertyExportFile]
+	var err error
+	if ok && (len(propStr) > 0) {
+		f, err = os.Open(propStr)
+		if err != nil {
+			return err
+		}
+	} else {
+		f = os.Stdout
+	}
+
+	propStr = props.GetDefault(PropertyExporter, PropertyExporterDefault)
+	exporter, err := NewMeasurementExporter(propStr, f)
+	if err != nil {
+		Println("Could not find exporter %s, will use default text exporter.", propStr)
+		exporter = NewTextMeasurementExporter(f)
+	}
+	defer exporter.Close()
+	exporter.Write("OVERALL", "RunTime(ms)", runtime)
+	throughput := float64(opCount) * 1000.0 / float64(runtime)
+	exporter.Write("OVERALL", "Throughput(ops/sec)", throughput)
+	GetMeasurements().ExportMeasurements(exporter)
+	return nil
+}
+
 type Shell struct {
 	args *Arguemnts
 }
