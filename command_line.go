@@ -41,8 +41,7 @@ var (
 		&Option{
 			Name:            "s",
 			HasArgument:     false,
-			HasDefaultValue: true,
-			DefaultValue:    false,
+			HasDefaultValue: false,
 			Doc:             "Print status to stderr",
 		},
 		&Option{
@@ -74,7 +73,6 @@ var (
 	Options = make(map[string]*Option)
 
 	ProgramName = ""
-	Args        *Arguemnts
 	OutputDest  *os.File
 )
 
@@ -82,14 +80,14 @@ type Option struct {
 	Name            string
 	HasArgument     bool
 	HasDefaultValue bool
-	DefaultValue    interface{}
+	DefaultValue    string
 	Doc             string
 }
 
 type Arguemnts struct {
 	Command  string
 	Database string
-	Options  map[string]interface{}
+	Options  map[string]string
 	Properties
 }
 
@@ -120,9 +118,8 @@ positional arguments:
   {cloudtable}       Database to test.
 
 optional arguments:
-  -h, --help         show this help message and exit
-`
-	fmt.Fprintf(os.Stderr, usageFormat, ProgramName, PropertyTableNameDefault)
+  -h, --help         show this help message and exit`
+	Println(usageFormat, ProgramName, PropertyTableNameDefault)
 }
 
 func init() {
@@ -133,6 +130,7 @@ func init() {
 		o := OptionList[i]
 		Options[o.Name] = o
 	}
+	OutputDest = os.Stdout
 }
 
 func ExitOnError(format string, args ...interface{}) {
@@ -154,25 +152,25 @@ func ParseArgs() *Arguemnts {
 	}
 	index++
 
-	_, ok := Commands[firstArg]
-	if !ok {
-		ExitOnError("unsupported command: %s", os.Args[1])
-	}
 	command := firstArg
+	_, ok := Commands[command]
+	if !ok {
+		ExitOnError("unsupported command: %s", command)
+	}
 
 	if len(os.Args) < 3 {
 		ExitOnError("no enough argument")
 	}
 
-	_, ok = Databases[os.Args[index]]
-	if !ok {
-		ExitOnError("unsupported database: %s", os.Args[2])
-	}
 	database := os.Args[index]
+	_, ok = Databases[database]
+	if !ok {
+		ExitOnError("unsupported database: %s", database)
+	}
 	index++
 
 	// init options to be returned with default values
-	opts := make(map[string]interface{})
+	opts := make(map[string]string)
 	for name, opt := range Options {
 		if opt.HasDefaultValue {
 			opts[name] = opt.DefaultValue
@@ -180,7 +178,7 @@ func ParseArgs() *Arguemnts {
 	}
 	// init property to be returned
 	props := NewProperties()
-
+	props[PropertyDB] = database
 	for i := index; i < len(os.Args); i++ {
 		a := os.Args[i]
 		for _, p := range OptionPrefixes {
@@ -200,6 +198,12 @@ func ParseArgs() *Arguemnts {
 			}
 			arg := os.Args[i]
 			switch option.Name {
+			case "s":
+				OutputDest = os.Stderr
+			case "db":
+				props.Add(PropertyDB, arg)
+			case "table":
+				props.Add(PropertyTableName, arg)
 			case "p":
 				// it's a property, should be in `k=v` form
 				parts := strings.Split(arg, "=")
@@ -207,6 +211,12 @@ func ParseArgs() *Arguemnts {
 					ExitOnError("invalid property: %s", arg)
 				}
 				props.Add(parts[0], parts[1])
+			case "P":
+				propsFromFile, err := LoadProperties(arg)
+				if err != nil {
+					ExitOnError(err.Error())
+				}
+				props.Merge(propsFromFile)
 			case "h", "help":
 				Usage()
 				os.Exit(0)
@@ -214,7 +224,7 @@ func ParseArgs() *Arguemnts {
 				opts[option.Name] = arg
 			}
 		} else {
-			opts[option.Name] = true
+			opts[option.Name] = "true"
 		}
 	}
 	return &Arguemnts{
@@ -223,4 +233,20 @@ func ParseArgs() *Arguemnts {
 		Options:    opts,
 		Properties: props,
 	}
+}
+
+func Main() {
+	args := ParseArgs()
+	var client Client
+	switch args.Command {
+	case "shell":
+		client = NewShell(args)
+	case "load":
+		client = NewLoader(args)
+	case "run":
+		client = NewRunner(args)
+	default:
+		ExitOnError("invalid command: %s", args.Command)
+	}
+	client.Main()
 }

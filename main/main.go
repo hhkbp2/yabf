@@ -1,9 +1,9 @@
 package main
 
 import (
-	. "github.com/hhkbp2/yabf"
+	"github.com/hhkbp2/yabf"
 )
 
 func main() {
-	Args = ParseArgs()
+	yabf.Main()
 }

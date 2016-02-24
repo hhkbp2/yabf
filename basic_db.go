@@ -83,7 +83,7 @@ func (self *BasicDB) Init() error {
 		return err
 	}
 	if self.verbose {
-		OutputProperties(p)
+		PrintProperties(p)
 	}
 	return nil
 }
@@ -94,46 +94,46 @@ func (self *BasicDB) Cleanup() error {
 }
 
 // Read a record from the database.
-func (self *BasicDB) Read(table string, key string, fields []string) (KVMap, error) {
+func (self *BasicDB) Read(table string, key string, fields []string) (KVMap, StatusType) {
 	self.Delay()
 	if self.verbose {
-		Output("READ %s %s [%s]", table, key, ConcatFieldsStr(fields))
+		Println("READ %s %s [%s]", table, key, ConcatFieldsStr(fields))
 	}
-	return nil, nil
+	return nil, StatusOK
 }
 
 // Perform a range scan for a set of records in the database.
-func (self *BasicDB) Scan(table string, startKey string, recordCount int64, fields []string) (KVMap, error) {
+func (self *BasicDB) Scan(table string, startKey string, recordCount int64, fields []string) ([]KVMap, StatusType) {
 	self.Delay()
 	if self.verbose {
-		Output("SCAN %s %s %d [%s]", table, string(startKey), recordCount, ConcatFieldsStr(fields))
+		Println("SCAN %s %s %d [%s]", table, string(startKey), recordCount, ConcatFieldsStr(fields))
 	}
-	return nil, nil
+	return nil, StatusOK
 }
 
 // Update a record in the database.
-func (self *BasicDB) Update(table string, key string, values KVMap) error {
+func (self *BasicDB) Update(table string, key string, values KVMap) StatusType {
 	self.Delay()
 	if self.verbose {
-		Output("UPDATE %s %s [%s]", table, key, ConcatKVStr(values))
+		Println("UPDATE %s %s [%s]", table, key, ConcatKVStr(values))
 	}
-	return nil
+	return StatusOK
 }
 
 // Insert a record in the database.
-func (self *BasicDB) Insert(table string, key string, values KVMap) error {
+func (self *BasicDB) Insert(table string, key string, values KVMap) StatusType {
 	self.Delay()
 	if self.verbose {
-		Output("INSERT %s %s [%s]", table, key, ConcatKVStr(values))
+		Println("INSERT %s %s [%s]", table, key, ConcatKVStr(values))
 	}
-	return nil
+	return StatusOK
 }
 
 // Delete a record from the database.
-func (self *BasicDB) Delete(table string, key string) error {
+func (self *BasicDB) Delete(table string, key string) StatusType {
 	self.Delay()
 	if self.verbose {
-		Output("DELETE %s %s", table, key)
+		Println("DELETE %s %s", table, key)
 	}
-	return nil
+	return StatusOK
 }

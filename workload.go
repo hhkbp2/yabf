@@ -431,12 +431,12 @@ func (self *CoreWorkload) DoInsert(db DB, object interface{}) bool {
 	dbKey := self.buildKeyName(keyNumber)
 	values := self.buildValues(dbKey)
 
-	var err error
+	var status StatusType
 	numberOfRetries := int64(0)
 	var random *rand.Rand
 	for {
-		err = db.Insert(self.table, dbKey, values)
-		if err == nil {
+		status = db.Insert(self.table, dbKey, values)
+		if status == StatusOK {
 			break
 		}
 		// Retry if configured. Without retrying, the load process will fail
@@ -456,7 +456,7 @@ func (self *CoreWorkload) DoInsert(db DB, object interface{}) bool {
 			break
 		}
 	}
-	return (err == nil)
+	return (status == StatusOK)
 }
 
 // Do one transcation operation. Because it will be called concurrently from
