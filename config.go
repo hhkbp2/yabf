@@ -15,31 +15,41 @@ const (
 	// The default value of `PropertyRecordCount`
 	PropertyRecordCountDefault = "0"
 	// The target number of operations to perform.
-	PropertyOperationCount = "operationcount"
+	PropertyOperationCount        = "operationcount"
+	PropertyOperationCountDefault = "0"
 	// The workload class to be loaded.
 	PropertyWorkload = "workload"
 	// The database class to be used.
-	PropertyDB = "db"
+	PropertyDB        = "db"
+	PropertyDBDefault = "basic"
 	// The exporter class to be used. The default is TestMeasurementExporter.
 	PropertyExporter        = "exporter"
 	PropertyExporterDefault = "TextMeasurementExporter"
 	// If set to the path of a file, this file will be written instead of stdout.
 	PropertyExportFile = "exportfile"
 	// The number of client goroutines to run.
-	PropertyThreadCount = "threadcount"
+	PropertyThreadCount        = "threadcount"
+	PropertyThreadCountDefault = "1"
 	// Indicates how many inserts to do, if less than `recordcount`.
 	// Useful for partitioning the load among multiple servers, if the Client
 	// is the bottleneck. Additionally, workloads should support the
 	// "insertstart" property, which tells them which record to start at.
 	PropertyInsertCount = "insertcount"
 	// Target number of opertions per second
-	PropertyTarget = "target"
+	PropertyTarget        = "target"
+	PropertyTargetDefault = "0"
 	// The maximum amount of time (in seconds) for which the benchmark will be run.
-	PropertyMaxExecutionTime = "maxexecutiontime"
+	PropertyMaxExecutionTime        = "maxexecutiontime"
+	PropertyMaxExecutionTimeDefault = "0"
 	// Whether or not this is the transaction phase (run) or not (load).
-	PropertyTransactions = "dotransactions"
+	PropertyTransactions          = "dotransactions"
+	PropertyStatusInterval        = "status.interval"
+	PropertyStatusIntervalDefault = "10"
 
 	// workload
+	PropertyInsertStart        = "insertstart"
+	PropertyInsertStartDefault = "0"
+
 	// The name of the database table to run queries against.
 	PropertyTableName = "table"
 	// The default value of `PropertyTableName`
@@ -143,9 +153,12 @@ const (
 	// The default value of `InsertionRetryInterval`
 	InsertionRetryIntervalDefault = "3"
 
-	// Workload
-	PropertyInsertStart        = "insertstart"
-	PropertyInsertStartDefault = "0"
+	PropertyStorageAge        = "storageages"
+	PropertyStorageAgeDefault = "10"
+	PropertyDiskSize          = "disksize"
+	PropertyDiskSizeDefault   = "100000000"
+	PropertyOccupancy         = "occupancy"
+	PropertyOccupancyDefault  = "0.9"
 
 	// measurement
 	PropertyMeasurementType            = "measurementtype"

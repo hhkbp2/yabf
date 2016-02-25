@@ -71,6 +71,22 @@ func LoadProperties(fileName string) (Properties, error) {
 	return ret, scanner.Err()
 }
 
+func NowMS() int64 {
+	return time.Now().UnixNano() / 1000
+}
+
+func NowNS() int64 {
+	return time.Now().UnixNano()
+}
+
+func MillisecondToNanosecond(millis int64) int64 {
+	return millis * 1000 * 1000
+}
+
+func SecondToNanosecond(second int64) int64 {
+	return second * 1000 * 1000 * 1000
+}
+
 const (
 	RandomBytesLength = 6
 )
@@ -102,12 +118,21 @@ func RandomBytes(length int64) []byte {
 }
 
 func Printf(format string, args ...interface{}) {
-	fmt.Fprintf(OutputDest, format, args...)
+	fmt.Fprintf(os.Stdout, format, args...)
+}
+
+func EPrintf(format string, args ...interface{}) {
+	fmt.Fprintf(os.Stderr, format, args...)
 }
 
 func Println(format string, args ...interface{}) {
-	Printf(format, args...)
-	fmt.Fprintln(OutputDest, "")
+	fmt.Fprintf(os.Stdout, format, args...)
+	fmt.Fprintln(os.Stdout, "")
+}
+
+func EPrintln(format string, args ...interface{}) {
+	fmt.Fprintf(os.Stderr, format, args...)
+	fmt.Fprintln(os.Stderr, "")
 }
 
 func PrintProperties(p Properties) {

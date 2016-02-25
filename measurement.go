@@ -146,6 +146,7 @@ func (self *OneMeasurementBase) ExportStatusCounts(exporter MeasurementExporter)
 
 // Collects latency measurements, and reports them when requested.
 type Measurements interface {
+	// in nano seconds
 	SetIntendedStartTime(t int64)
 	GetIntendedStartTime() int64
 
@@ -564,7 +565,7 @@ func (self *OneMeasurementRaw) GetSummary() string {
 
 func try(err error) {
 	if err != nil {
-		panic(fmt.Errorf("error: %s", err.Error()))
+		panic(fmt.Errorf("Error: %s", err.Error()))
 	}
 }
 

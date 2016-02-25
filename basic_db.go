@@ -8,10 +8,6 @@ import (
 	"time"
 )
 
-func MillisecondToNanosecond(millis int64) int64 {
-	return millis * 1000 * 1000
-}
-
 func ConcatFieldsStr(fields []string) string {
 	if len(fields) > 0 {
 		return strings.Join(fields, ", ")

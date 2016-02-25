@@ -10,6 +10,32 @@ import (
 	"time"
 )
 
+type MakeWorkloadFunc func() Workload
+
+var (
+	Workloads map[string]MakeWorkloadFunc
+)
+
+func init() {
+	Workloads = map[string]MakeWorkloadFunc{
+		"CoreWorkload": func() Workload {
+			return NewCoreWorkload()
+		},
+		"ConstantOccupancyWorkload": func() Workload {
+			return NewConstantOccupancyWorkload()
+		},
+	}
+}
+
+func NewWorkload(className string) (Workload, error) {
+	f, ok := Workloads[className]
+	if !ok {
+		return nil, g.NewErrorf("unsupported workload: %s", className)
+	}
+	w := f()
+	return w, nil
+}
+
 // Workload represents One experiment scenario.
 // One object of this type will be instantiated and
 // shared among all client routines.
@@ -34,7 +60,7 @@ type Workload interface {
 	// If you have no state to retain for this routine, return null.
 	// (But if you have no state to retain for this routine, probably
 	// you don't need to override this function.)
-	InitRoutine(p Properties, id int64) (interface{}, error)
+	InitRoutine(p Properties) (interface{}, error)
 
 	// Cleanup the scenario.
 	// Called once, in the main client routine, after all operations
@@ -58,12 +84,6 @@ type Workload interface {
 	// DB operations and mutations on object. Mutations to object do not need
 	// to be synchronized, since each routine has its own object instance.
 	DoTransaction(db DB, object interface{}) bool
-
-	// Allows scheduling a request to stop the Workload.
-	RequestStop()
-
-	// Check the status of the stop request flag.
-	isStopRequested() bool
 }
 
 // CoreWorkload represents the core benchmark scenario.
@@ -360,6 +380,16 @@ func (self *CoreWorkload) getFieldLengthGenerator(p Properties) (g.IntegerGenera
 	return fieldLengthGenerator, nil
 }
 
+func (self *CoreWorkload) InitRoutine(p Properties) (interface{}, error) {
+	// nothing to do
+	return nil, nil
+}
+
+func (self *CoreWorkload) Cleanup() error {
+	// nothing to do
+	return nil
+}
+
 func (self *CoreWorkload) buildKeyName(keyNumber int64) string {
 	if !self.orderedInserts {
 		keyNumber = int64(g.Hash(keyNumber))
@@ -510,7 +540,7 @@ func (self *CoreWorkload) nextKeyNumber() int64 {
 // Bucket 2 means null data was returned when some data was expected.
 func (self *CoreWorkload) verifyRow(key string, cells KVMap) {
 	status := StatusOK
-	startTime := time.Now().UnixNano()
+	startTime := NowMS()
 	if (cells == nil) || len(cells) == 0 {
 		// This assumes that empty dataset is never valid
 		status = StatusError
@@ -522,8 +552,8 @@ func (self *CoreWorkload) verifyRow(key string, cells KVMap) {
 			}
 		}
 	}
-	endTime := time.Now().UnixNano()
-	self.measurements.Measure("VERIFY", (endTime-startTime)/1000)
+	endTime := NowMS()
+	self.measurements.Measure("VERIFY", endTime-startTime)
 	self.measurements.ReportStatus("VERIFY", status)
 }
 
@@ -567,14 +597,14 @@ func (self *CoreWorkload) DoTransactionReadModifyWrite(db DB) {
 
 	// do the transaction
 	intendStartTime := self.measurements.GetIntendedStartTime()
-	startTime := time.Now().UnixNano()
+	startTime := NowMS()
 	ret, _ := db.Read(self.table, keyName, fields)
 	db.Update(self.table, keyName, values)
-	endTime := time.Now().UnixNano()
+	endTime := NowMS()
 	if self.dataIntegrity {
 		self.verifyRow(keyName, ret)
 	}
-	self.measurements.Measure("READ-MODIFY-WRITE", (endTime-startTime)/1000)
+	self.measurements.Measure("READ-MODIFY-WRITE", endTime-startTime)
 	self.measurements.MeasureIntended("READ-MODIFY-WRITE", (endTime-intendStartTime)/1000)
 }
 
@@ -614,4 +644,63 @@ func (self *CoreWorkload) DoTransactionInsert(db DB) {
 	values := self.buildValues(keyName)
 	db.Insert(self.table, keyName, values)
 	self.transactionInsertKeySequence.Acknowledge(keyNumber)
+}
+
+// A disk-fragmenting workload.
+// Properties to control the client:
+// disksize: how many bytes of storage can the disk store? (default 100,000,000)
+// occupancy: what fraction of the available storage should be used? (default 0.9)
+// requestdistribution: what distribution should be used to select the records to operate on - uniform, zipfian or latest (default histogram)
+//
+// See also:
+// Russell Sears, Catharine van Ingen.
+// Fragmentation in Large Object Repositories(https://database.cs.wisc.edu/cidr/cidr2007/papers/cidr07p34.pdf)
+// CIDR 2006. [Presentation(https://database.cs.wisc.edu/cidr/cidr2007/slides/p34-sears.ppt)]
+type ConstantOccupancyWorkload struct {
+	*CoreWorkload
+	diskSize    int64
+	storageAges int64
+	objectSizes g.IntegerGenerator
+	occupancy   float64
+	objectCount int64
+}
+
+func NewConstantOccupancyWorkload() *ConstantOccupancyWorkload {
+	return &ConstantOccupancyWorkload{
+		CoreWorkload: NewCoreWorkload(),
+	}
+}
+
+func (self *ConstantOccupancyWorkload) Init(p Properties) (err error) {
+	catch(&err)
+	propStr := p.GetDefault(PropertyDiskSize, PropertyDiskSizeDefault)
+	diskSize, err := strconv.ParseInt(propStr, 0, 64)
+	try(err)
+	propStr = p.GetDefault(PropertyStorageAge, PropertyStorageAgeDefault)
+	storageAges, err := strconv.ParseInt(propStr, 0, 64)
+	try(err)
+	propStr = p.GetDefault(PropertyOccupancy, PropertyOccupancyDefault)
+	occupancy, err := strconv.ParseFloat(propStr, 64)
+	try(err)
+	_, ok1 := p[PropertyRecordCount]
+	_, ok2 := p[PropertyInsertCount]
+	_, ok3 := p[PropertyOperationCount]
+	if ok1 || ok2 || ok3 {
+		EPrintln("Warning: record, insert or operation count was set prior to initting ConstantOccupancyWorkload. Overriding old values.")
+	}
+	gen, err := self.CoreWorkload.getFieldLengthGenerator(p)
+	try(err)
+	fieldSize := gen.Mean()
+	propStr = p.GetDefault(PropertyFieldCount, PropertyFieldCountDefault)
+	fieldCount, err := strconv.ParseInt(propStr, 0, 64)
+	try(err)
+	objectCount := int64(occupancy * (float64(diskSize) / (fieldSize * float64(fieldCount))))
+	if objectCount == 0 {
+		try(g.NewErrorf("Object count was zero. Perhaps diskSize is too low?"))
+	}
+	p.Add(PropertyRecordCount, fmt.Sprintf("%d", objectCount))
+	p.Add(PropertyOperationCount, fmt.Sprintf("%d", storageAges*objectCount))
+	p.Add(PropertyInsertCount, fmt.Sprintf("%d", objectCount))
+	try(self.CoreWorkload.Init(p))
+	return
 }

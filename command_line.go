@@ -1,7 +1,6 @@
 package yabf
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -42,7 +41,7 @@ var (
 			Name:            "s",
 			HasArgument:     false,
 			HasDefaultValue: false,
-			Doc:             "Print status to stderr",
+			Doc:             "show status (default: no status)",
 		},
 		&Option{
 			Name:            "db",
@@ -73,7 +72,6 @@ var (
 	Options = make(map[string]*Option)
 
 	ProgramName = ""
-	OutputDest  *os.File
 )
 
 type Option struct {
@@ -104,11 +102,11 @@ Databases:
   cloudtable         A distributed KV store
 
 Options:
-  -P filename      : specify workload file
-  -p name=value    : specify a property value
-  -s               : Print status to stderr
-  -db classname    : use a specified DB class(can also set the "db" property)
-  -table tablename : use the table name instead of the default %s
+  -P filename        specify workload file
+  -p name=value      specify a property value
+  -s                 show status (default: no status)
+  -db classname      use a specified DB class(can also set the "db" property)
+  -table tablename   use the table name instead of the default %s
 
 Workload Files:
   There are various predefined workloads under workloads/ directory.
@@ -130,12 +128,11 @@ func init() {
 		o := OptionList[i]
 		Options[o.Name] = o
 	}
-	OutputDest = os.Stdout
 }
 
 func ExitOnError(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, format, args...)
-	fmt.Fprintln(os.Stderr)
+	EPrintf(format, args...)
+	EPrintf("\n")
 	os.Exit(1)
 }
 
@@ -198,8 +195,6 @@ func ParseArgs() *Arguemnts {
 			}
 			arg := os.Args[i]
 			switch option.Name {
-			case "s":
-				OutputDest = os.Stderr
 			case "db":
 				props.Add(PropertyDB, arg)
 			case "table":
