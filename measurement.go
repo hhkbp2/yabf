@@ -176,7 +176,7 @@ type DefaultMeasurements struct {
 	intendedStartTime         int64
 }
 
-func NewDefaultMeasurement(props Properties) *DefaultMeasurements {
+func NewDefaultMeasurements(props Properties) *DefaultMeasurements {
 	opToMeasurementMap := make(map[string]OneMeasurement)
 	opToIntendedMesurementMap := make(map[string]OneMeasurement)
 	var measurementType MeasurementType
@@ -350,7 +350,7 @@ func GetMeasurementProperties() Properties {
 
 func GetMeasurements() Measurements {
 	if singleton == nil {
-		singleton = NewDefaultMeasurement(measurementProperties)
+		singleton = NewDefaultMeasurements(measurementProperties)
 	}
 	return singleton
 }
@@ -369,13 +369,13 @@ func NewTextMeasurementExporter(w io.WriteCloser) *TextMeasurementExporter {
 }
 
 func (self *TextMeasurementExporter) Write(metric string, measurement string, v interface{}) error {
-	_, err := self.buf.WriteString(fmt.Sprintf("[%s], %s, %v\n", metric, measurement))
+	_, err := self.buf.WriteString(fmt.Sprintf("[%s], %s, %v\n", metric, measurement, v))
 	return err
 }
 
 func (self *TextMeasurementExporter) Close() error {
 	err := self.buf.Flush()
-	err2 := self.Close()
+	err2 := self.WriteCloser.Close()
 	if err != nil {
 		return err
 	}
