@@ -311,7 +311,6 @@ WORKER_LOOP:
 			self.throttleNanos(startTime)
 		}
 	}
-	self.measurements.SetIntendedStartTime(0)
 	if err = self.db.Cleanup(); err != nil {
 		EPrintln("cleanup database error: %s", err)
 	}
@@ -330,7 +329,6 @@ func (self *Worker) throttleNanos(startTime int64) {
 		// delay until next tick
 		deadline := startTime + self.opDone*self.targetOpsTickNS
 		waitUtil(deadline)
-		self.measurements.SetIntendedStartTime(deadline)
 	}
 }
 

@@ -596,7 +596,6 @@ func (self *CoreWorkload) DoTransactionReadModifyWrite(db DB) {
 	}
 
 	// do the transaction
-	intendStartTime := self.measurements.GetIntendedStartTime()
 	startTime := NowMS()
 	ret, _ := db.Read(self.table, keyName, fields)
 	db.Update(self.table, keyName, values)
@@ -605,7 +604,6 @@ func (self *CoreWorkload) DoTransactionReadModifyWrite(db DB) {
 		self.verifyRow(keyName, ret)
 	}
 	self.measurements.Measure("READ-MODIFY-WRITE", endTime-startTime)
-	self.measurements.MeasureIntended("READ-MODIFY-WRITE", (endTime-intendStartTime)/1000)
 }
 
 func (self *CoreWorkload) DoTransactionScan(db DB) {

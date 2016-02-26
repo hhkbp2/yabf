@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -113,14 +114,18 @@ type OneMeasurement interface {
 }
 
 type OneMeasurementBase struct {
-	Name        string
-	ReturnCodes map[StatusType]uint32
+	Name            string
+	MeasureLock     *sync.Mutex
+	ReturnCodes     map[StatusType]uint32
+	ReturnCodesLock *sync.Mutex
 }
 
 func NewOneMeasurementBase(name string) *OneMeasurementBase {
 	return &OneMeasurementBase{
-		Name:        name,
-		ReturnCodes: make(map[StatusType]uint32),
+		Name:            name,
+		MeasureLock:     &sync.Mutex{},
+		ReturnCodes:     make(map[StatusType]uint32),
+		ReturnCodesLock: &sync.Mutex{},
 	}
 }
 
@@ -129,6 +134,8 @@ func (self *OneMeasurementBase) GetName() string {
 }
 
 func (self *OneMeasurementBase) ReportStatus(status StatusType) {
+	self.ReturnCodesLock.Lock()
+	defer self.ReturnCodesLock.Unlock()
 	count, _ := self.ReturnCodes[status]
 	self.ReturnCodes[status] = count + 1
 }
@@ -146,16 +153,9 @@ func (self *OneMeasurementBase) ExportStatusCounts(exporter MeasurementExporter)
 
 // Collects latency measurements, and reports them when requested.
 type Measurements interface {
-	// in nano seconds
-	SetIntendedStartTime(t int64)
-	GetIntendedStartTime() int64
-
 	// Report a single value of a single metric. E.g. for read latency,
 	// operation="READ" and latency is the measured value.
 	Measure(operation string, latency int64)
-	// Report a single value of a single metric. E.g. for read latency,
-	// operation="READ" and latency is the measured value.
-	MeasureIntended(operation string, latency int64)
 
 	// Return a one line summary of the measurements.
 	GetSummary() string
@@ -168,17 +168,14 @@ type Measurements interface {
 }
 
 type DefaultMeasurements struct {
-	props                     Properties
-	measurementType           MeasurementType
-	measurementInterval       int
-	opToMeasurementMap        map[string]OneMeasurement
-	opToIntendedMesurementMap map[string]OneMeasurement
-	intendedStartTime         int64
+	props              Properties
+	measurementType    MeasurementType
+	opToMeasurementMap map[string]OneMeasurement
+	lock               *sync.RWMutex
 }
 
 func NewDefaultMeasurements(props Properties) *DefaultMeasurements {
 	opToMeasurementMap := make(map[string]OneMeasurement)
-	opToIntendedMesurementMap := make(map[string]OneMeasurement)
 	var measurementType MeasurementType
 	propStr := props.GetDefault(PropertyMeasurementType, PropertyMeasurementTypeDefault)
 	switch propStr {
@@ -198,24 +195,11 @@ func NewDefaultMeasurements(props Properties) *DefaultMeasurements {
 		panic(fmt.Sprintf("unknown %s=%s", PropertyMeasurementType, propStr))
 	}
 
-	var measurementInterval int
-	propStr = props.GetDefault(PropertyMeasurementInterval, PropertyMeasurementIntervalDefault)
-	switch propStr {
-	case "op":
-		measurementInterval = 0
-	case "intended":
-		measurementInterval = 1
-	case "both":
-		measurementInterval = 2
-	default:
-		panic(fmt.Sprintf("unknown %s=%s", PropertyMeasurementInterval, propStr))
-	}
 	return &DefaultMeasurements{
-		props:                     props,
-		measurementType:           measurementType,
-		measurementInterval:       measurementInterval,
-		opToMeasurementMap:        opToMeasurementMap,
-		opToIntendedMesurementMap: opToIntendedMesurementMap,
+		props:              props,
+		measurementType:    measurementType,
+		opToMeasurementMap: opToMeasurementMap,
+		lock:               &sync.RWMutex{},
 	}
 }
 
@@ -247,41 +231,10 @@ func (self *DefaultMeasurements) constructOneMeasurement(name string) OneMeasure
 	}
 }
 
-func (self *DefaultMeasurements) SetIntendedStartTime(t int64) {
-	if self.measurementInterval == 0 {
-		return
-	}
-	self.intendedStartTime = t
-}
-
-func (self *DefaultMeasurements) GetIntendedStartTime() int64 {
-	if self.measurementInterval == 0 {
-		return 0
-	}
-	if self.intendedStartTime == 0 {
-		return time.Now().UnixNano()
-	} else {
-		return self.intendedStartTime
-	}
-}
-
 // Report a single value of a single metric. E.g. for read latency,
 // operation="READ" and latency is the measured value.
 func (self *DefaultMeasurements) Measure(operation string, latency int64) {
-	if self.measurementInterval == 0 {
-		return
-	}
 	m := self.getOpMeasurement(operation)
-	m.Measure(latency)
-}
-
-// Report a single value of a single metric. E.g. for read latency,
-// operation="READ" and latency is the measured value.
-func (self *DefaultMeasurements) MeasureIntended(operation string, latency int64) {
-	if self.measurementInterval == 0 {
-		return
-	}
-	m := self.getOpIntendedMeasurement(operation)
 	m.Measure(latency)
 }
 
@@ -290,19 +243,11 @@ func (self *DefaultMeasurements) GetSummary() string {
 	for _, m := range self.opToMeasurementMap {
 		ret += m.GetSummary()
 	}
-	for _, m := range self.opToIntendedMesurementMap {
-		ret += m.GetSummary()
-	}
 	return ret
 }
 
 func (self *DefaultMeasurements) ReportStatus(operation string, status StatusType) {
-	var m OneMeasurement
-	if self.measurementInterval == 1 {
-		m = self.getOpIntendedMeasurement(operation)
-	} else {
-		m = self.getOpMeasurement(operation)
-	}
+	m := self.getOpMeasurement(operation)
 	m.ReportStatus(status)
 }
 
@@ -311,26 +256,18 @@ func (self *DefaultMeasurements) ExportMeasurements(exporter MeasurementExporter
 	for _, m := range self.opToMeasurementMap {
 		try(m.ExportMeasurements(exporter))
 	}
-	for _, m := range self.opToIntendedMesurementMap {
-		try(m.ExportMeasurements(exporter))
-	}
 	return
 }
 
 func (self *DefaultMeasurements) getOpMeasurement(operation string) OneMeasurement {
+	self.lock.RLock()
 	m, ok := self.opToMeasurementMap[operation]
+	self.lock.RUnlock()
 	if !ok {
+		self.lock.Lock()
 		m = self.constructOneMeasurement(operation)
 		self.opToMeasurementMap[operation] = m
-	}
-	return m
-}
-
-func (self *DefaultMeasurements) getOpIntendedMeasurement(operation string) OneMeasurement {
-	m, ok := self.opToIntendedMesurementMap[operation]
-	if !ok {
-		m = self.constructOneMeasurement(operation)
-		self.opToIntendedMesurementMap[operation] = m
+		self.lock.Unlock()
 	}
 	return m
 }
@@ -546,6 +483,9 @@ func NewOneMeasurementRaw(name string, props Properties) (*OneMeasurementRaw, er
 }
 
 func (self *OneMeasurementRaw) Measure(latency int64) {
+	self.MeasureLock.Lock()
+	defer self.MeasureLock.Unlock()
+
 	self.totalLatency += latency
 	self.windowTotalLatency += latency
 	self.windowOperations++
@@ -693,6 +633,9 @@ func (self *OneMeasurementTimeSeries) CheckEndOfUnit(forceEnd bool) {
 }
 
 func (self *OneMeasurementTimeSeries) Measure(latency int64) {
+	self.MeasureLock.Lock()
+	defer self.MeasureLock.Unlock()
+
 	self.CheckEndOfUnit(false)
 	self.count++
 	self.sum += latency
@@ -777,6 +720,9 @@ func NewOneMeasurementHistogram(name string, props Properties) (*OneMeasurementH
 }
 
 func (self *OneMeasurementHistogram) Measure(latency int64) {
+	self.MeasureLock.Lock()
+	defer self.MeasureLock.Unlock()
+
 	// latency reported in us and collected in buckets by ms.
 	if (latency / 1000) >= self.buckets {
 		self.histogramOverflow++
@@ -934,6 +880,9 @@ func NewOneMeasurementHdrHistogram(name string, props Properties) (*OneMeasureme
 
 // It appears latency is reported in micros.
 func (self *OneMeasurementHdrHistogram) Measure(latency int64) {
+	self.MeasureLock.Lock()
+	defer self.MeasureLock.Unlock()
+
 	self.histogram.RecordValue(latency)
 }
 
