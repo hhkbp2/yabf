@@ -3,6 +3,8 @@ package yabf
 import (
 	"errors"
 	g "github.com/hhkbp2/yabf/generator"
+	"strconv"
+	"strings"
 )
 
 var (
@@ -99,5 +101,124 @@ func NewDB(database string, props Properties) (DB, error) {
 	}
 	db := f()
 	db.SetProperties(props)
-	return db, nil
+	return NewDBWrapper(db), nil
+}
+
+// Wrapper around a "real" DB that measures latencies and counts return codes.
+// Also reports latency separately between OK and false operations.
+type DBWrapper struct {
+	DB
+	measurements Measurements
+
+	reportLatencyForEachError bool
+	latencyTrackedErrors      map[string]bool
+}
+
+func NewDBWrapper(db DB) *DBWrapper {
+	return &DBWrapper{
+		DB:           db,
+		measurements: GetMeasurements(),
+	}
+}
+
+func (self *DBWrapper) Init() (err error) {
+	defer catch(&err)
+	try(self.DB.Init())
+	p := self.GetProperties()
+	propStr := p.GetDefault(PropertyReportLatencyForEachError, PropertyReportLatencyForEachErrorDefault)
+	reportLatencyForEachError, err := strconv.ParseBool(propStr)
+	try(err)
+	latencyTrackedErrors := make(map[string]bool)
+	var ok bool
+	if !self.reportLatencyForEachError {
+		propStr, ok = p[PropertyLatencyTrackedErrors]
+		if ok {
+			parts := strings.Split(propStr, ",")
+			for _, p := range parts {
+				latencyTrackedErrors[p] = true
+			}
+		}
+	}
+	self.reportLatencyForEachError = reportLatencyForEachError
+	self.latencyTrackedErrors = latencyTrackedErrors
+
+	EPrintln("DBWrapper: report latency for each error is %t and specific error codes to track for latency are: %s",
+		reportLatencyForEachError, propStr)
+	return
+}
+
+// Cleanup any state for this DB.
+func (self *DBWrapper) Cleanup() error {
+	startTime := NowNS()
+	err := self.DB.Cleanup()
+	if err != nil {
+		return err
+	}
+	endTime := NowNS()
+	self.measure("CLEANUP", StatusOK, startTime, endTime)
+	return err
+}
+
+// Read a record from the database.
+func (self *DBWrapper) Read(table string, key string, fields []string) (KVMap, StatusType) {
+	startTime := NowNS()
+	ret, status := self.DB.Read(table, key, fields)
+	endTime := NowNS()
+	self.measure("READ", status, startTime, endTime)
+	self.measurements.ReportStatus("READ", status)
+	return ret, status
+}
+
+// Perform a range scan for a set of records in the databases.
+func (self *DBWrapper) Scan(table string, startKey string, recordCount int64, fields []string) ([]KVMap, StatusType) {
+	startTime := NowNS()
+	ret, status := self.DB.Scan(table, startKey, recordCount, fields)
+	endTime := NowNS()
+	self.measure("SCAN", status, startTime, endTime)
+	self.measurements.ReportStatus("SCAN", status)
+	return ret, status
+}
+
+// Update a recerd in the database.
+func (self *DBWrapper) Update(table string, key string, values KVMap) StatusType {
+	startTime := NowNS()
+	status := self.DB.Update(table, key, values)
+	endTime := NowNS()
+	self.measure("UPDATE", status, startTime, endTime)
+	self.measurements.ReportStatus("UPDATE", status)
+	return status
+}
+
+// Insert a record in the database.
+func (self *DBWrapper) Insert(table string, key string, values KVMap) StatusType {
+	startTime := NowNS()
+	status := self.DB.Insert(table, key, values)
+	endTime := NowNS()
+	self.measure("INSERT", status, startTime, endTime)
+	self.measurements.ReportStatus("INSERT", status)
+	return status
+}
+
+// Delete a record from the database.
+func (self *DBWrapper) Delete(table string, key string) StatusType {
+	startTime := NowNS()
+	status := self.DB.Delete(table, key)
+	endTime := NowNS()
+	self.measure("DELETE", status, startTime, endTime)
+	self.measurements.ReportStatus("DELETE", status)
+	return status
+}
+
+func (self *DBWrapper) measure(op string, status StatusType, startTime, endTime int64) {
+	measurementName := op
+	if status != StatusOK {
+		statusStr := status.String()
+		_, ok := self.latencyTrackedErrors[statusStr]
+		if self.reportLatencyForEachError || ok {
+			measurementName = op + "-" + statusStr
+		} else {
+			measurementName = op + "-FAILED"
+		}
+	}
+	self.measurements.Measure(measurementName, int64((endTime-startTime)/1000.0))
 }

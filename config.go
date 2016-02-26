@@ -1,6 +1,11 @@
 package yabf
 
 const (
+	// DBWrapper
+	PropertyReportLatencyForEachError        = "reportlatencyforeacherror"
+	PropertyReportLatencyForEachErrorDefault = "false"
+	PropertyLatencyTrackedErrors             = "latencytrackederrors"
+
 	// BasicDB
 	ConfigBasicDBVerbose        = "basicdb.verbose"
 	ConfigBasicDBVerboseDefault = "true"
