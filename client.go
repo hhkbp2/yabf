@@ -510,6 +510,7 @@ func exportMeasurements(props Properties, opCount, runtime int64) error {
 	return nil
 }
 
+// A simple command line client to a database, using the appropriate DB implementation.
 type Shell struct {
 	args *Arguemnts
 }

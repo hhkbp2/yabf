@@ -30,6 +30,8 @@ func ConcatKVStr(values KVMap) string {
 	return ret
 }
 
+// A simple DB implementation that just prints out the requested operations,
+// instead of doing them against a real database.
 type BasicDB struct {
 	*DBBase
 	verbose        bool

@@ -268,6 +268,8 @@ const (
 	FNVPrime32       = uint32(16777619)
 )
 
+// 32 bit FNV hash.
+// Refer to http://en.wikipedia.org/wiki/Fowler_Noll_Vo_hash
 func FNVHash32(value uint32) uint32 {
 	hash := FNVOffsetBasis32
 	for i := 0; i < 4; i++ {
@@ -286,8 +288,8 @@ const (
 )
 
 // 64 bit FNV hash.
+// Refer to http://en.wikipedia.org/wiki/Fowler_Noll_Vo_hash
 func FNVHash64(value uint64) uint64 {
-	// from http://en.wikipedia.org/wiki/Fowler_Noll_Vo_hash
 	hash := FNVOffsetBasis64
 	for i := 0; i < 8; i++ {
 		octet := value & 0x00FF

@@ -821,6 +821,7 @@ func (self *HdrHistogramLogWriter) OutputHistogram(h *hdrhistogram.Histogram) er
 	return binary.Write(self.w, binary.LittleEndian, h.Export())
 }
 
+// Take measurements and maintain a HdrHistogram of a given metric, such as READ LATENCY.
 type OneMeasurementHdrHistogram struct {
 	*OneMeasurementBase
 	histogram   *hdrhistogram.Histogram

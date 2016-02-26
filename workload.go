@@ -37,8 +37,8 @@ func NewWorkload(className string) (Workload, error) {
 }
 
 // Workload represents One experiment scenario.
-// One object of this type will be instantiated and
-// shared among all client routines.
+// One object of this type will be instantiated and shared among
+// all client routines.
 // This class should be constructed using a no-argument constructor,
 // so we can load it dynamically. Any argument-based initialization
 // should be done by init().
@@ -118,12 +118,15 @@ type Workload interface {
 //   insertorder: should records be inserted in order by key ("ordered"), or in
 //                hashed order ("hashed") (default: hashed)
 type CoreWorkload struct {
-	table                        string
-	fieldCount                   int64
-	fieldNames                   []string
-	fieldLengthGenerator         g.IntegerGenerator
-	readAllFields                bool
-	writeAllFields               bool
+	table      string
+	fieldCount int64
+	fieldNames []string
+	// generator object that produces field lengths.
+	fieldLengthGenerator g.IntegerGenerator
+	readAllFields        bool
+	writeAllFields       bool
+	// Set to true if want to check correctness of reads.
+	// Must also be set to true during loading phase to function.
 	dataIntegrity                bool
 	keySequence                  g.IntegerGenerator
 	operationChooser             *g.DiscreteGenerator
@@ -144,6 +147,8 @@ func NewCoreWorkload() *CoreWorkload {
 	}
 }
 
+// Initialize the scenario.
+// Called once, in the main routine, before any operations are started.
 func (self *CoreWorkload) Init(p Properties) error {
 	table := p.GetDefault(PropertyTableName, PropertyTableNameDefault)
 
@@ -223,6 +228,7 @@ func (self *CoreWorkload) Init(p Properties) error {
 	}
 	propStr = p.GetDefault(PropertyFieldLengthDistribution, PropertyFieldLengthDistributionDefault)
 	isConstant := (propStr == "constant")
+	// Confirm that fieldLengthGenerator returns a constant if data integrity check requested.
 	if dataIntegrity && isConstant {
 		return g.NewErrorf("must have constant field size to check data integrity")
 	}
@@ -397,6 +403,7 @@ func (self *CoreWorkload) buildKeyName(keyNumber int64) string {
 	return fmt.Sprintf("user%d", keyNumber)
 }
 
+// Build a value for a randomly chosen field.
 func (self *CoreWorkload) buildSingleValue(key string) KVMap {
 	fieldKey := self.fieldNames[self.fieldChooser.NextInt()]
 	var data []byte
@@ -411,6 +418,7 @@ func (self *CoreWorkload) buildSingleValue(key string) KVMap {
 	}
 }
 
+// Build values for all fields.
 func (self *CoreWorkload) buildValues(key string) KVMap {
 	ret := make(KVMap)
 	var data Binary
@@ -437,6 +445,7 @@ func javaStringHashcode(b []byte) int64 {
 	return hash
 }
 
+// Build a deterministic value given the key information.
 func (self *CoreWorkload) buildDeterministicValue(key string, fieldKey string) []byte {
 	size := self.fieldLengthGenerator.NextInt()
 	buf := bytes.NewBuffer(make([]byte, 0, size))
