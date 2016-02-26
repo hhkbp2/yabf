@@ -2,7 +2,11 @@ package yabf
 
 import (
 	"bufio"
+	"bytes"
+	"fmt"
+	"github.com/hhkbp2/go-strftime"
 	g "github.com/hhkbp2/yabf/generator"
+	"math"
 	"os"
 	"regexp"
 	"strconv"
@@ -24,6 +28,15 @@ func NewClientBase(args *Arguemnts) *ClientBase {
 	return &ClientBase{
 		Args: args,
 	}
+}
+
+func checkRequiredProperties(props Properties) bool {
+	workload, ok := props[PropertyWorkload]
+	if (!ok) || (len(workload) == 0) {
+		EPrintln("Missing property: %s", PropertyWorkload)
+		return false
+	}
+	return true
 }
 
 func (self *ClientBase) CheckProperties() {
@@ -89,7 +102,9 @@ func (self *ClientBase) Main() {
 			Println(" (might take a minutes for large data sets)")
 		}
 	}()
+	// set up measurements
 	SetMeasurementProperties(props)
+	// load the workload
 	workloadName := props.Get(PropertyWorkload)
 	workload, err := NewWorkload(workloadName)
 	if err != nil {
@@ -129,6 +144,7 @@ func (self *ClientBase) Main() {
 			ExitOnError("fail to create db, error: %s", err)
 		}
 		threadOpCount := opCount / threadCount
+		// ensure correct number of operations, in case opCount is not a multiple of threadCount
 		if i < (opCount % threadCount) {
 			threadOpCount++
 		}
@@ -139,6 +155,10 @@ func (self *ClientBase) Main() {
 
 	stopCh := make(chan int, 1)
 	waitGroup := &sync.WaitGroup{}
+	label := ""
+	if l, ok := self.Args.Options["l"]; ok {
+		label = l
+	}
 	_, status := self.Args.Options["s"]
 	if status {
 		standardStatus := false
@@ -151,7 +171,7 @@ func (self *ClientBase) Main() {
 		if err != nil {
 			ExitOnError("invalid property %s=%s, should be integer", PropertyStatusInterval, propStr)
 		}
-		reporter := NewStatusReporter(workers, stopCh, waitGroup, standardStatus, statusIntervalSeconds)
+		reporter := NewStatusReporter(workers, stopCh, waitGroup, standardStatus, statusIntervalSeconds, label)
 		waitGroup.Add(1)
 		go reporter.run()
 	}
@@ -213,6 +233,7 @@ func (self *ClientBase) Main() {
 	}
 }
 
+// A routine for executing transactions or data inserts to the database.
 type Worker struct {
 	db                   DB
 	workload             Workload
@@ -296,6 +317,7 @@ WORKER_LOOP:
 	}
 }
 
+// Waits util the deadline time.
 func waitUtil(to int64) {
 	now := NowNS()
 	if now < to {
@@ -305,16 +327,19 @@ func waitUtil(to int64) {
 
 func (self *Worker) throttleNanos(startTime int64) {
 	if self.targetOpsPerMS > 0 {
+		// delay until next tick
 		deadline := startTime + self.opDone*self.targetOpsTickNS
 		waitUtil(deadline)
 		self.measurements.SetIntendedStartTime(deadline)
 	}
 }
 
+// the total amount of work this routine is still expected to do.
 func (self *Worker) getOpsDone() int64 {
 	return self.opDone
 }
 
+// the operations left for this routine to do.
 func (self *Worker) getOpsTodo() int64 {
 	todo := self.opCount - self.opDone
 	if todo < 0 {
@@ -323,15 +348,20 @@ func (self *Worker) getOpsTodo() int64 {
 	return todo
 }
 
+// A routine to periodically show the status of the experiement, to reassure
+// you that process is being made.
 type StatusReporter struct {
+	// the worker routines that are running
 	workers        []*Worker
 	stopCh         chan int
 	waitGroup      *sync.WaitGroup
 	standardStatus bool
-	sleepTimeNS    int64
+	// the interval for reporting status
+	sleepTimeNS int64
+	label       string
 }
 
-func NewStatusReporter(workers []*Worker, stopCh chan int, waitGroup *sync.WaitGroup, standardStatus bool, intervalSeconds int64) *StatusReporter {
+func NewStatusReporter(workers []*Worker, stopCh chan int, waitGroup *sync.WaitGroup, standardStatus bool, intervalSeconds int64, label string) *StatusReporter {
 	sleepTimeNS := intervalSeconds * 1000 * 1000 * 1000
 	return &StatusReporter{
 		workers:        workers,
@@ -339,9 +369,11 @@ func NewStatusReporter(workers []*Worker, stopCh chan int, waitGroup *sync.WaitG
 		waitGroup:      waitGroup,
 		standardStatus: standardStatus,
 		sleepTimeNS:    sleepTimeNS,
+		label:          label,
 	}
 }
 
+// Run and periodically report status.
 func (self *StatusReporter) run() {
 	defer self.waitGroup.Done()
 
@@ -364,12 +396,65 @@ REPORTER_LOOP:
 			deadline += self.sleepTimeNS
 		}
 	}
+	// Print the final stats.
 	self.computeStats(startTimeMS, startIntervalMS, NowMS(), lastTotalOps)
 }
 
+// Computes and prints the stats.
 func (self *StatusReporter) computeStats(startTimeMS int64, startIntervalMS int64, endIntervalMS int64, lastTotalOps int64) int64 {
-	// TODO
-	return lastTotalOps
+	var totalOps, todoOps int64
+	// Calculate the total number of operations completed.
+	for _, worker := range self.workers {
+		totalOps += worker.getOpsDone()
+		todoOps += worker.getOpsTodo()
+	}
+	interval := endIntervalMS - startTimeMS
+	throughput := 1000.0 * float64(totalOps) / float64(interval)
+	currentThrough := 1000.0 * float64(totalOps-lastTotalOps) / float64(endIntervalMS-startIntervalMS)
+	estimateRemaining := math.Ceil(float64(todoOps) / throughput)
+
+	var buf bytes.Buffer
+	timestamp := strftime.Format("%Y-%m-%d %H:%M:%S:%3n", time.Now())
+	buf.WriteString(fmt.Sprintf("%s%.2d %d sec: %d operations; ", self.label, timestamp, interval/1000, totalOps))
+	if totalOps != 0 {
+		buf.WriteString(fmt.Sprintf("%.2d current ops/sec; ", currentThrough))
+	}
+	if todoOps != 0 {
+		buf.WriteString(fmt.Sprintf("est completion in %s", formatRemaining(int64(estimateRemaining))))
+	}
+	buf.WriteString(GetMeasurements().GetSummary())
+	EPrintln(buf.String())
+	if self.standardStatus {
+		Println(buf.String())
+	}
+	return totalOps
+}
+
+// Turn seonds remaining into more usefull units.
+// i.e. if there are hours or days worth of seconds, use them.
+func formatRemaining(seconds int64) string {
+	var buf bytes.Buffer
+	d := time.Duration(seconds * int64(time.Second))
+	hours := int64(d.Hours())
+	days := hours / 24
+	hours = hours % 24
+	minutes := int64(d.Minutes()) % 60
+	allSeconds := int64(d.Seconds())
+	if days > 0 {
+		buf.WriteString(fmt.Sprintf("%d days", days))
+	}
+	if hours > 0 {
+		buf.WriteString(fmt.Sprintf("%d hours", hours))
+	}
+	// Only include minute granularity if we're < 1 day
+	if (days < 1) && (minutes > 0) {
+		buf.WriteString(fmt.Sprintf("%d minutes", minutes))
+	}
+	if allSeconds < 60 {
+		seconds = allSeconds % 60
+		buf.WriteString(fmt.Sprintf("%d seconds", seconds))
+	}
+	return buf.String()
 }
 
 type Loader struct {
@@ -396,19 +481,13 @@ func NewRunner(args *Arguemnts) *Runner {
 	return object
 }
 
-func checkRequiredProperties(props Properties) bool {
-	workload, ok := props[PropertyWorkload]
-	if (!ok) || (len(workload) == 0) {
-		EPrintln("Missing property: %s", PropertyWorkload)
-		return false
-	}
-	return true
-}
-
+// Exports the measurements to either stdout or a file using the exporter
+// specified by conf.
 func exportMeasurements(props Properties, opCount, runtime int64) error {
 	var f *os.File
 	propStr, ok := props[PropertyExportFile]
 	var err error
+	// if no destination file is specified then the results will be written to stdout.
 	if ok && (len(propStr) > 0) {
 		f, err = os.Open(propStr)
 		if err != nil {
@@ -418,6 +497,7 @@ func exportMeasurements(props Properties, opCount, runtime int64) error {
 		f = os.Stdout
 	}
 
+	// if no exporter is provided then the default text one will be used
 	propStr = props.GetDefault(PropertyExporter, PropertyExporterDefault)
 	exporter, err := NewMeasurementExporter(propStr, f)
 	if err != nil {

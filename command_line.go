@@ -44,6 +44,12 @@ var (
 			Doc:             "show status (default: no status)",
 		},
 		&Option{
+			Name:            "l",
+			HasArgument:     true,
+			HasDefaultValue: false,
+			Doc:             "use label for status (e.g. to label one experiment out of a whole batch)",
+		},
+		&Option{
 			Name:            "db",
 			HasArgument:     true,
 			HasDefaultValue: false,
@@ -105,6 +111,7 @@ Options:
   -P filename        specify workload file
   -p name=value      specify a property value
   -s                 show status (default: no status)
+  -l label           use label for status (e.g. to label one experiment out of a whole batch)
   -db classname      use a specified DB class(can also set the "db" property)
   -table tablename   use the table name instead of the default %s
 
