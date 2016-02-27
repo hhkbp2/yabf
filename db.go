@@ -3,8 +3,11 @@ package yabf
 import (
 	"errors"
 	g "github.com/hhkbp2/yabf/generator"
+	"math/rand"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
 var (
@@ -221,4 +224,91 @@ func (self *DBWrapper) measure(op string, status StatusType, startTime, endTime 
 		}
 	}
 	self.measurements.Measure(measurementName, int64((endTime-startTime)/1000.0))
+}
+
+// A simple DB implementation that just prints out the requested operations,
+// instead of doing them against a database.
+type GoodBadUglyDB struct {
+	*DBBase
+	delays []int64
+	lock   *sync.RWMutex
+}
+
+func NewGoodBadUglyDB() *GoodBadUglyDB {
+	return &GoodBadUglyDB{
+		DBBase: NewDBBase(),
+		delays: []int64{200, 1000, 10000, 50000, 100000},
+		lock:   &sync.RWMutex{},
+	}
+}
+
+func (self *GoodBadUglyDB) delay() {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	p := r.Float64()
+	var mod int64
+	if p < 0.9 {
+		mod = 0
+	} else if p < 0.99 {
+		mod = 1
+	} else if p < 0.9999 {
+		mod = 2
+	} else {
+		mod = 3
+	}
+	// this will make mod 3 pauses global
+	if mod == 3 {
+		EPrintln("OUCH")
+	}
+	// TODO
+}
+
+// Initialize any state for this DB.
+func (self *GoodBadUglyDB) Init() error {
+	propStr := self.GetProperties().GetDefault(SimulateDelay, SimulateDelayDefault)
+	parts := strings.Split(propStr, ",")
+	i := 0
+	for _, p := range parts {
+		d, err := strconv.ParseInt(p, 0, 64)
+		if err != nil {
+			return err
+		}
+		self.delays[i] = d
+		i++
+	}
+	return nil
+}
+
+func (self *GoodBadUglyDB) Cleanup() error {
+	// do nothing
+	return nil
+}
+
+// Read a record from the database.
+func (self *GoodBadUglyDB) Read(table string, key string, fields []string) (KVMap, StatusType) {
+	self.delay()
+	return nil, StatusOK
+}
+
+// Perform a range scan for a set of records in the database.
+func (self *GoodBadUglyDB) Scan(table string, startKey string, recordCount int64, fields []string) ([]KVMap, StatusType) {
+	self.delay()
+	return nil, StatusOK
+}
+
+// Update a record in the database.
+func (self *GoodBadUglyDB) Update(table string, key string, values KVMap) StatusType {
+	self.delay()
+	return StatusOK
+}
+
+// Insert a record in the database.
+func (self *GoodBadUglyDB) Insert(table string, key string, value KVMap) StatusType {
+	self.delay()
+	return StatusOK
+}
+
+// Delete a record from the database.
+func (self *GoodBadUglyDB) Delete(table string, key string) StatusType {
+	self.delay()
+	return StatusOK
 }

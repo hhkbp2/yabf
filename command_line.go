@@ -22,6 +22,9 @@ var (
 		"basic": func() DB {
 			return NewBasicDB()
 		},
+		"simple": func() DB {
+			return NewGoodBadUglyDB()
+		},
 	}
 	OptionPrefixes = []string{"--", "-"}
 	OptionList     = []*Option{
@@ -104,6 +107,7 @@ Commands:
   shell              Interactive mode
 
 Databases:
+  simple             A demo database that does nothing
   basic              A demo database that does nothing but echo the operations
   cloudtable         A distributed KV store
 

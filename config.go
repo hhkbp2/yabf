@@ -6,6 +6,10 @@ const (
 	PropertyReportLatencyForEachErrorDefault = "false"
 	PropertyLatencyTrackedErrors             = "latencytrackederrors"
 
+	// GoodBadUglyDB
+	SimulateDelay        = "gbudb.delays"
+	SimulateDelayDefault = "200,1000,10000,50000,100000"
+
 	// BasicDB
 	ConfigBasicDBVerbose        = "basicdb.verbose"
 	ConfigBasicDBVerboseDefault = "true"
