@@ -1,6 +1,7 @@
 package binding
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
@@ -147,17 +148,75 @@ func (self *MysqlDB) Scan(table string, startKey string, recordCount int64, fiel
 	return ret, yabf.StatusOK
 }
 
+func (self *MysqlDB) createUpdateStat(table string, values yabf.KVMap) (string, []interface{}) {
+	var buf bytes.Buffer
+	afterFirst := false
+	args := make([]interface{}, 0, len(values))
+	for k, v := range values {
+		if afterFirst {
+			buf.WriteString(", ")
+		} else {
+			afterFirst = true
+		}
+		buf.WriteString(k)
+		buf.WriteString(" = ?")
+		args = append(args, v)
+	}
+	setStr := buf.String()
+	return fmt.Sprintf("UPDATE %s SET %s WHERE %s = ?", table, setStr, self.primaryKey), args
+}
+
 func (self *MysqlDB) Update(table string, key string, values yabf.KVMap) yabf.StatusType {
-	// TODO add impl
+	statement, args := self.createUpdateStat(table, values)
+	stmt, err := self.db.Prepare(statement)
+	if err != nil {
+		return yabf.StatusBadRequest
+	}
+	_, err = stmt.Exec(args...)
+	if err != nil {
+		return yabf.StatusError
+	}
 	return yabf.StatusOK
 }
 
+func (self *MysqlDB) createInsertStat(table string, key string, values yabf.KVMap) (string, []interface{}) {
+	var buf1, buf2 bytes.Buffer
+	args := make([]interface{}, 0, len(values)+1)
+	buf1.WriteString(self.primaryKey)
+	buf2.WriteString("?")
+	args = append(args, []byte(key))
+	for k, v := range values {
+		buf1.WriteString(", ")
+		buf2.WriteString(", ")
+		buf1.WriteString(k)
+		buf2.WriteString("?")
+		args = append(args, v)
+	}
+	return fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s)", table, buf1.String(), buf2.String()), args
+}
+
 func (self *MysqlDB) Insert(table string, key string, values yabf.KVMap) yabf.StatusType {
-	// TODO add impl
+	statement, args := self.createInsertStat(table, key, values)
+	stmt, err := self.db.Prepare(statement)
+	if err != nil {
+		return yabf.StatusBadRequest
+	}
+	_, err = stmt.Exec(args...)
+	if err != nil {
+		return yabf.StatusError
+	}
 	return yabf.StatusOK
 }
 
 func (self *MysqlDB) Delete(table string, key string) yabf.StatusType {
-	// TODO add impl
+	statement := fmt.Sprintf("DELETE FROM %s WHERE %s = ?", table, self.primaryKey)
+	stmt, err := self.db.Prepare(statement)
+	if err != nil {
+		return yabf.StatusBadRequest
+	}
+	_, err = stmt.Exec(key)
+	if err != nil {
+		return yabf.StatusError
+	}
 	return yabf.StatusOK
 }
