@@ -15,10 +15,6 @@ var (
 		"shell": true,
 	}
 	Databases = map[string]MakeDBFunc{
-		"cloudtable": func() DB {
-			// TODO impl this
-			return nil
-		},
 		"basic": func() DB {
 			return NewBasicDB()
 		},
