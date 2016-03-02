@@ -66,7 +66,9 @@ const (
 	// The name of property for the number of fields in a record
 	PropertyFieldCount = "fieldcount"
 	// The default value of `PropertyFieldCount`.
-	PropertyFieldCountDefault = "10"
+	PropertyFieldCountDefault  = "10"
+	PropertyFieldPrefix        = "fieldprefix"
+	PropertyFieldPrefixDefault = "field"
 	// The name of the property for the field length distribution.
 	// Options are "uniform", "zipfian"(favoring short records), "constant",
 	// and "histogram".

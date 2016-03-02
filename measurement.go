@@ -870,7 +870,7 @@ func NewOneMeasurementHdrHistogram(name string, props Properties) (*OneMeasureme
 	}
 	object := &OneMeasurementHdrHistogram{
 		OneMeasurementBase: NewOneMeasurementBase(name),
-		histogram:          hdrhistogram.New(0, math.MaxInt64, 10),
+		histogram:          hdrhistogram.New(0, math.MaxInt64, 5),
 		filePath:           filePath,
 		file:               f,
 		writer:             writer,

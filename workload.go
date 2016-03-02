@@ -157,9 +157,10 @@ func (self *CoreWorkload) Init(p Properties) error {
 	if err != nil {
 		return err
 	}
+	fieldPrefix := p.GetDefault(PropertyFieldPrefix, PropertyFieldPrefixDefault)
 	fieldNames := make([]string, 0, fieldCount)
 	for i := int64(0); i < fieldCount; i++ {
-		fieldNames = append(fieldNames, fmt.Sprintf("field%d", i))
+		fieldNames = append(fieldNames, fmt.Sprintf("%s%d", fieldPrefix, i))
 	}
 	fieldLengthGenerator, err := self.getFieldLengthGenerator(p)
 	if err != nil {
