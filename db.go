@@ -1,6 +1,7 @@
 package yabf
 
 import (
+	"database/sql/driver"
 	"errors"
 	g "github.com/hhkbp2/yabf/generator"
 	"math/rand"
@@ -22,6 +23,10 @@ var (
 
 // Binary represents arbitrary binary value(byte array).
 type Binary []byte
+
+func (self Binary) Value() (driver.Value, error) {
+	return []byte(self), nil
+}
 
 // Result represents the result type of db operations.
 type KVMap map[string]Binary
@@ -223,7 +228,7 @@ func (self *DBWrapper) measure(op string, status StatusType, startTime, endTime 
 			measurementName = op + "-FAILED"
 		}
 	}
-	self.measurements.Measure(measurementName, int64((endTime-startTime)/1000.0))
+	self.measurements.Measure(measurementName, NanosecondToMicrosecond(endTime-startTime))
 }
 
 // A simple DB implementation that just prints out the requested operations,

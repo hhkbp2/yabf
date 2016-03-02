@@ -85,7 +85,6 @@ func (self *ClientBase) Main() {
 	Println("YCSB Client 0.1")
 	Println("Command line: ")
 	Println(strings.Join(os.Args, " "))
-	Println("")
 	Println("Loading workload...")
 
 	// show a warning message that creating the workload is taking a while
@@ -227,7 +226,7 @@ func (self *ClientBase) Main() {
 		ExitOnError("fail to cleanup workload, error: %s", err)
 	}
 
-	err = exportMeasurements(props, total, (endTime-startTime)/1000)
+	err = exportMeasurements(props, total, NanosecondToMillisecond(endTime-startTime))
 	if err != nil {
 		ExitOnError("could not export measurements, error: %s", err)
 	}
@@ -413,7 +412,7 @@ func (self *StatusReporter) computeStats(startTimeMS int64, startIntervalMS int6
 
 	var buf bytes.Buffer
 	timestamp := strftime.Format("%Y-%m-%d %H:%M:%S:%3n", time.Now())
-	buf.WriteString(fmt.Sprintf("%s%.2d %d sec: %d operations; ", self.label, timestamp, interval/1000, totalOps))
+	buf.WriteString(fmt.Sprintf("%s%.2d %d sec: %d operations; ", self.label, timestamp, MillisecondToSecond(interval), totalOps))
 	if totalOps != 0 {
 		buf.WriteString(fmt.Sprintf("%.2d current ops/sec; ", currentThrough))
 	}

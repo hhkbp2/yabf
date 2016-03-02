@@ -226,6 +226,8 @@ func (self *DefaultMeasurements) constructOneMeasurement(name string) OneMeasure
 			MustNewMeasurement(NewOneMeasurementRaw("Raw"+name, self.props)))
 	case MeasurementTimeSeries:
 		return MustNewMeasurement(NewOneMeasurementTimeSeries(name, self.props))
+	case MeasurementRaw:
+		return MustNewMeasurement(NewOneMeasurementRaw(name, self.props))
 	default:
 		panic("impossible to be here. Dead code reached. Bugs?")
 	}
@@ -611,12 +613,8 @@ func NewOneMeasurementTimeSeries(name string, props Properties) (*OneMeasurement
 	return object, nil
 }
 
-func NanoToMillis(nano int64) int64 {
-	return nano / 1000000
-}
-
 func (self *OneMeasurementTimeSeries) CheckEndOfUnit(forceEnd bool) {
-	now := NanoToMillis(time.Now().UnixNano())
+	now := NanosecondToMillisecond(time.Now().UnixNano())
 	if self.start < 0 {
 		self.currentUnit = 0
 		self.start = now
@@ -724,10 +722,10 @@ func (self *OneMeasurementHistogram) Measure(latency int64) {
 	defer self.MeasureLock.Unlock()
 
 	// latency reported in us and collected in buckets by ms.
-	if (latency / 1000) >= self.buckets {
+	if MillisecondToSecond(latency) >= self.buckets {
 		self.histogramOverflow++
 	} else {
-		self.histogram[latency/1000]++
+		self.histogram[MillisecondToSecond(latency)]++
 	}
 	self.operations++
 	self.totalLatency += latency
@@ -853,6 +851,16 @@ func NewOneMeasurementHdrHistogram(name string, props Properties) (*OneMeasureme
 	if err != nil {
 		return nil, err
 	}
+	prop = props.GetDefault(PropertyHdrHistogramMax, PropertyHdrHistogramMaxDefault)
+	max, err := strconv.ParseInt(prop, 0, 64)
+	if err != nil {
+		return nil, err
+	}
+	prop = props.GetDefault(PropertyHdrHistogramSig, PropertyHdrHistogramSigDefault)
+	sig, err := strconv.ParseInt(prop, 0, 64)
+	if err != nil {
+		return nil, err
+	}
 	var filePath string
 	var f *os.File
 	var writer *HdrHistogramLogWriter
@@ -870,7 +878,7 @@ func NewOneMeasurementHdrHistogram(name string, props Properties) (*OneMeasureme
 	}
 	object := &OneMeasurementHdrHistogram{
 		OneMeasurementBase: NewOneMeasurementBase(name),
-		histogram:          hdrhistogram.New(0, math.MaxInt64, 5),
+		histogram:          hdrhistogram.New(0, max, int(sig)),
 		filePath:           filePath,
 		file:               f,
 		writer:             writer,

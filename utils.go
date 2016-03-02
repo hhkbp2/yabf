@@ -72,7 +72,7 @@ func LoadProperties(fileName string) (Properties, error) {
 }
 
 func NowMS() int64 {
-	return time.Now().UnixNano() / 1000
+	return NanosecondToMillisecond(NowNS())
 }
 
 func NowNS() int64 {
@@ -83,8 +83,20 @@ func MillisecondToNanosecond(millis int64) int64 {
 	return millis * 1000 * 1000
 }
 
+func MillisecondToSecond(millis int64) int64 {
+	return millis / 1000
+}
+
 func SecondToNanosecond(second int64) int64 {
 	return second * 1000 * 1000 * 1000
+}
+
+func NanosecondToMicrosecond(nano int64) int64 {
+	return nano / 1000
+}
+
+func NanosecondToMillisecond(nano int64) int64 {
+	return nano / (1000 * 1000)
 }
 
 const (

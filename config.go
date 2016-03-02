@@ -210,6 +210,14 @@ const (
 	PropertyHdrHistogramOutputPath    = "hdrhistogram.output.path"
 	// The default value of `PropertyHdrHistogramOutputPath`
 	PropertyHdrHistogramOutputPathDefault = ""
+	// The max value of hdrhistogram
+	PropertyHdrHistogramMax = "hdrhistogram.max"
+	// The default value of `PropertyHdrHistogramMax`, which is 2 seconds in unit ms.
+	PropertyHdrHistogramMaxDefault = "2000000"
+	// The number of significant value digits in hdrhistogram
+	PropertyHdrHistogramSig = "hdrhistogram.sig"
+	// The default value of `PropertyHdrHistogramSig`
+	PropertyHdrHistogramSigDefault = "3"
 
 	// generator
 	// What percentage of the readings should be within the most recent

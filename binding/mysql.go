@@ -24,7 +24,7 @@ const (
 	PropertyMysqlOptions           = "mysql.options"
 	PropertyMysqlOptionsDefault    = "charset=utf8"
 	PropertyMysqlPrimaryKey        = "mysql.primarykey"
-	PropertyMysqlPrimaryKeyDefault = "key"
+	PropertyMysqlPrimaryKeyDefault = "yabf_key"
 )
 
 type MysqlDB struct {
@@ -65,7 +65,7 @@ func (self *MysqlDB) Init() error {
 	self.user = user
 	self.password = password
 	self.options = options
-	sourceName := fmt.Sprintf("%s:%s@tcp(%s:%s)/?%s", user, password, host, port, database, options)
+	sourceName := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?%s", user, password, host, port, database, options)
 	db, err := sql.Open("mysql", sourceName)
 	if err != nil {
 		return err
