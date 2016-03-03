@@ -106,6 +106,10 @@ func (self *MysqlDB) Read(table string, key string, fields []string) (yabf.KVMap
 	results := make([]interface{}, length)
 	err = row.Scan(results...)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, yabf.StatusNotFound
+		}
+		yabf.Println("DEBUG fail to insert %s %s, err: %s", table, key, err)
 		return nil, yabf.StatusError
 	}
 	ret := make(yabf.KVMap)
@@ -123,6 +127,9 @@ func (self *MysqlDB) Scan(table string, startKey string, recordCount int64, fiel
 	}
 	rows, err := stmt.Query(startKey, recordCount)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, yabf.StatusNotFound
+		}
 		return nil, yabf.StatusError
 	}
 	columns, err := rows.Columns()
@@ -174,6 +181,9 @@ func (self *MysqlDB) Update(table string, key string, values yabf.KVMap) yabf.St
 	}
 	_, err = stmt.Exec(args...)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return yabf.StatusNotFound
+		}
 		return yabf.StatusError
 	}
 	return yabf.StatusOK
@@ -216,6 +226,9 @@ func (self *MysqlDB) Delete(table string, key string) yabf.StatusType {
 	}
 	_, err = stmt.Exec(key)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return yabf.StatusNotFound
+		}
 		return yabf.StatusError
 	}
 	return yabf.StatusOK
