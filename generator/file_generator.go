@@ -53,3 +53,13 @@ func (self *FileGenerator) ReloadFile() error {
 	self.scanner = bufio.NewScanner(f)
 	return nil
 }
+
+// Close the file.
+func (self *FileGenerator) Close() error {
+	if self.file != nil {
+		err := self.file.Close()
+		self.file = nil
+		return err
+	}
+	return nil
+}
