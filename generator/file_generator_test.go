@@ -18,4 +18,12 @@ func TestFileGenerator(t *testing.T) {
 		require.Equal(t, last, fmt.Sprintf("%d", i))
 		require.Equal(t, last, g.LastString())
 	}
+	err = fg.ReloadFile()
+	require.Nil(t, err)
+	defer fg.Close()
+	for i := 1; i < total; i++ {
+		last := g.NextString()
+		require.Equal(t, last, fmt.Sprintf("%d", i))
+		require.Equal(t, last, g.LastString())
+	}
 }

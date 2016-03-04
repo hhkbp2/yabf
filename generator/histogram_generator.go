@@ -82,7 +82,7 @@ func NewHistogramGeneratorFromFile(file string) (*HistogramGenerator, error) {
 	buckets := make([]int64, l.Len())
 	for e := l.Front(); e != nil; e = e.Next() {
 		b := e.Value.(*bucket)
-		buckets[b.Index] = buckets[b.Area]
+		buckets[b.Index] = b.Area
 	}
 	return NewHistogramGenerator(buckets, size), nil
 }
@@ -101,11 +101,11 @@ func (self *HistogramGenerator) init() {
 	var area, weightedArea int64
 	for i := 0; i < len(self.buckets); i++ {
 		area += self.buckets[i]
-		weightedArea = int64(i) * self.buckets[i]
+		weightedArea += int64(i) * self.buckets[i]
 	}
 	self.area = area
 	self.weightedArea = weightedArea
-	self.meanSize = float64(self.blockSize) * float64(self.weightedArea)
+	self.meanSize = float64(self.blockSize) * float64(self.weightedArea) / float64(self.area)
 }
 
 func (self *HistogramGenerator) NextInt() int64 {
@@ -114,7 +114,9 @@ func (self *HistogramGenerator) NextInt() int64 {
 	for i = 0; i < len(self.buckets)-1; i++ {
 		number -= self.buckets[i]
 		if number <= 0 {
-			return int64(i+1) * self.blockSize
+			next := int64(i+1) * self.blockSize
+			self.SetLastInt(next)
+			return next
 		}
 	}
 	next := int64(i) * self.blockSize

@@ -44,7 +44,7 @@ func (self *FileGenerator) LastString() string {
 
 // Reopen the file to reuse values.
 func (self *FileGenerator) ReloadFile() error {
-	self.file.Close()
+	self.Close()
 	f, err := os.Open(self.filename)
 	if err != nil {
 		return err
