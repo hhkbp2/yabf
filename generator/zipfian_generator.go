@@ -147,6 +147,10 @@ func (self *ZipfianGenerator) NextLong() int64 {
 // Generate the next item. this distribution will be skewed toward
 // lower itegers; e.g. 0 will be the most popular, 1 the next most popular, etc.
 func (self *ZipfianGenerator) Next(itemCount int64) int64 {
+	var ret int64
+	defer func(r *int64) {
+		self.IntegerGeneratorBase.SetLastInt(*r)
+	}(&ret)
 	if itemCount != self.countForzata {
 		if itemCount > self.countForzata {
 			self.countForzata, self.zetan = zeta(self.countForzata, itemCount, self.theta, self.zetan)
@@ -160,13 +164,14 @@ func (self *ZipfianGenerator) Next(itemCount int64) int64 {
 	u := NextFloat64()
 	uz := u * self.zetan
 	if uz < 1.0 {
-		return self.base
+		ret = self.base
+		return ret
 	}
 	if uz < 1.0+math.Pow(0.5, self.theta) {
-		return self.base + 1
+		ret = self.base + 1
+		return ret
 	}
-	ret := self.base + int64(float64(itemCount)*math.Pow(self.eta*u-self.eta+1.0, self.alpha))
-	self.IntegerGeneratorBase.SetLastInt(ret)
+	ret = self.base + int64(float64(itemCount)*math.Pow(self.eta*u-self.eta+1.0, self.alpha))
 	return ret
 }
 
@@ -243,7 +248,7 @@ func (self *ScrambledZipfianGenerator) NextInt() int64 {
 // return the next item in the sequence.
 func (self *ScrambledZipfianGenerator) Next() int64 {
 	ret := self.gen.NextLong()
-	ret = self.min + int64(math.Abs(float64(FNVHash64(uint64(ret)))))%self.itemCount
+	ret = self.min + int64(FNVHash64(uint64(ret))%uint64(self.itemCount))
 	self.SetLastInt(ret)
 	return ret
 }
