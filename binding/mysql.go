@@ -101,20 +101,39 @@ func (self *MysqlDB) Read(table string, key string, fields []string) (yabf.KVMap
 	if err != nil {
 		return nil, yabf.StatusBadRequest
 	}
-	row := stmt.QueryRow(key)
-	length := len(fields)
-	results := make([]interface{}, length)
-	err = row.Scan(results...)
+	rows, err := stmt.Query(key)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, yabf.StatusNotFound
 		}
-		yabf.Println("DEBUG fail to insert %s %s, err: %s", table, key, err)
+		return nil, yabf.StatusError
+	}
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, yabf.StatusError
+	}
+	length := len(columns)
+	if (len(fields) != 0) && (length != len(fields)) {
+		return nil, yabf.StatusUnexpectedState
+	}
+	if !rows.Next() {
+		if rows.Err() != nil {
+			return nil, yabf.StatusError
+		}
+		return nil, yabf.StatusNotFound
+	}
+	results := make([][]byte, length)
+	toScan := make([]interface{}, length)
+	for i, _ := range results {
+		toScan[i] = &results[i]
+	}
+	err = rows.Scan(toScan...)
+	if err != nil {
 		return nil, yabf.StatusError
 	}
 	ret := make(yabf.KVMap)
 	for i := 0; i < length; i++ {
-		ret[fields[i]] = []byte(fmt.Sprintf("%v", results[i]))
+		ret[columns[i]] = results[i]
 	}
 	return ret, yabf.StatusOK
 }
@@ -137,19 +156,23 @@ func (self *MysqlDB) Scan(table string, startKey string, recordCount int64, fiel
 		return nil, yabf.StatusError
 	}
 	length := len(columns)
-	if length != len(fields) {
+	if (len(fields) != 0) && (length != len(fields)) {
 		return nil, yabf.StatusUnexpectedState
 	}
 	ret := make([]yabf.KVMap, 0, recordCount)
 	for rows.Next() {
-		results := make([]interface{}, length)
-		err = rows.Scan(results...)
+		results := make([][]byte, length)
+		toScan := make([]interface{}, length)
+		for i, _ := range results {
+			toScan[i] = &results[i]
+		}
+		err = rows.Scan(toScan...)
 		if err != nil {
 			return nil, yabf.StatusError
 		}
 		m := make(yabf.KVMap)
 		for i := 0; i < length; i++ {
-			m[columns[i]] = []byte(fmt.Sprintf("%v", results[i]))
+			m[columns[i]] = results[i]
 		}
 	}
 	return ret, yabf.StatusOK
