@@ -9,7 +9,6 @@ func AddBindings() {
 		return NewMysqlDB()
 	}
 	yabf.Databases["cloudtable"] = func() yabf.DB {
-		// TODO impl this
-		return nil
+		return NewCloudTableDB()
 	}
 }
