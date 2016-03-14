@@ -8,13 +8,15 @@ GO       := $(if $(shell which gov),gov,go)
 root_dir := $(CURDIR)
 cloudtable_idl := $(root_dir)/binding/cloudtable.thrift
 gen_dir  := $(root_dir)/binding/cloudtable-gen
+bin_dir  := ./main
+bin_targets := $(patsubst %.go,%,$(wildcard $(bin_dir)/*.go))
 
 .PHONY: all gen test test-root test-generator clean
 
-all:
-	$(QUIET) cd main && $(GO) build
+all: gen $(bin_targets)
 
-all: gen
+$(bin_targets): %: %.go
+	$(QUIET) cd $(dir $@) && $(GO) build -o $(notdir $@) $(notdir $<)
 
 gen: $(gen_dir)
 
@@ -30,5 +32,5 @@ test-generator:
 	$(QUIET) cd generator && $(GO) test -v
 
 clean:
-	$(QUIET) $(RM) $(gen_dir)
+	$(QUIET) $(RM) $(gen_dir) $(bin_targets)
 
