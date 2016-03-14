@@ -128,6 +128,7 @@ type CoreWorkload struct {
 	// Set to true if want to check correctness of reads.
 	// Must also be set to true during loading phase to function.
 	dataIntegrity                bool
+	keyPrefix                    string
 	keySequence                  g.IntegerGenerator
 	operationChooser             *g.DiscreteGenerator
 	keyChooser                   g.IntegerGenerator
@@ -254,6 +255,7 @@ func (self *CoreWorkload) Init(p Properties) error {
 		orderedInserts = true
 	}
 
+	keyPrefix := p.GetDefault(PropertyKeyPrefix, PropertyKeyPrefixDefault)
 	keySequence := g.NewCounterGenerator(insertStart)
 	operationChooser := g.NewDiscreteGenerator()
 
@@ -347,6 +349,7 @@ func (self *CoreWorkload) Init(p Properties) error {
 	self.readAllFields = readAllFields
 	self.writeAllFields = writeAllFields
 	self.dataIntegrity = dataIntegrity
+	self.keyPrefix = keyPrefix
 	self.keySequence = keySequence
 	self.operationChooser = operationChooser
 	self.keyChooser = keyChooser
@@ -399,9 +402,10 @@ func (self *CoreWorkload) Cleanup() error {
 
 func (self *CoreWorkload) buildKeyName(keyNumber int64) string {
 	if !self.orderedInserts {
-		keyNumber = int64(g.Hash(keyNumber))
+		n := g.Hash(keyNumber)
+		return fmt.Sprintf("%s%d", self.keyPrefix, n)
 	}
-	return fmt.Sprintf("user%d", keyNumber)
+	return fmt.Sprintf("%s%d", self.keyPrefix, keyNumber)
 }
 
 // Build a value for a randomly chosen field.

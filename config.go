@@ -88,6 +88,10 @@ const (
 	PropertyFieldLengthHistogramFile = "fieldlengthhistogram"
 	// The default value of `PropertyFieldLengthHistogramFile`
 	PropertyFieldLengthHistogramFileDefault = "hist.txt"
+	// The prefix of key
+	PropertyKeyPrefix = "keyprefix"
+	// The default value of `PropertyKeyPrefix`
+	PropertyKeyPrefixDefault = "user"
 	// The name of the property for deciding whether to read one field (false)
 	// or all fields (true) of a record.
 	PropertyReadAllFields = "readallfields"

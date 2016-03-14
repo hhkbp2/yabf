@@ -13,8 +13,6 @@ const (
 	PropertyCloudtableHostDefault                 = "localhost"
 	PropertyCloudtablePort                        = "cloudtable.port"
 	PropertyCloudtablePortDefault                 = "2000"
-	PropertyCloudtableNamespace                   = "cloudtable.namespace"
-	PropertyCloudtableNamespaceDefault            = "yabf_test"
 	PropertyCloudtableColumnFamily                = "cloudtable.columnfamily"
 	PropertyCloudtableAuthenticateUser            = "cloudtable.authuser"
 	PropertyCloudtableAuthenticateUserDefault     = "authuser"
@@ -139,6 +137,7 @@ func (self *CloudTableDB) Update(table string, key string, values yabf.KVMap) ya
 	put.ColumnValues = cvs
 	err := self.client.Put(table, put)
 	if err != nil {
+		yabf.EPrintln("DEBUG error on insert: %s", err)
 		return yabf.StatusError
 	}
 	return yabf.StatusOK
