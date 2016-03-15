@@ -748,7 +748,7 @@ func (self *OneMeasurementHistogram) GetSummary() string {
 	report := float64(self.windowTotalLatency) / float64(self.windowOperations)
 	self.windowOperations = 0
 	self.windowTotalLatency = 0
-	return fmt.Sprintf("[%s AverageLatency(us)=%.2d]", self.GetName(), report)
+	return fmt.Sprintf("[%s AverageLatency(us)=%.2g]", self.GetName(), report)
 }
 
 func (self *OneMeasurementHistogram) ExportMeasurements(exporter MeasurementExporter) (err error) {
@@ -902,7 +902,7 @@ func (self *OneMeasurementHdrHistogram) GetSummary() string {
 	if self.writer != nil {
 		self.writer.OutputHistogram(self.histogram)
 	}
-	format := "[%s: Count=%d, Max=%d, Min=%d, Avg=%d, 90=%d, 99=%d, 99.9=%g, 99.99=%g]"
+	format := "[%s: Count=%d, Max=%d, Min=%d, Avg=%g, 90=%d, 99=%d, 99.9=%d, 99.99=%d]"
 	return fmt.Sprintf(format,
 		self.GetName(),
 		self.histogram.TotalCount(),

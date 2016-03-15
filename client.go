@@ -359,13 +359,12 @@ type StatusReporter struct {
 }
 
 func NewStatusReporter(workers []*Worker, stopCh chan int, waitGroup *sync.WaitGroup, standardStatus bool, intervalSeconds int64, label string) *StatusReporter {
-	sleepTimeNS := intervalSeconds * 1000 * 1000 * 1000
 	return &StatusReporter{
 		workers:        workers,
 		stopCh:         stopCh,
 		waitGroup:      waitGroup,
 		standardStatus: standardStatus,
-		sleepTimeNS:    sleepTimeNS,
+		sleepTimeNS:    SecondToNanosecond(intervalSeconds),
 		label:          label,
 	}
 }
@@ -374,9 +373,9 @@ func NewStatusReporter(workers []*Worker, stopCh chan int, waitGroup *sync.WaitG
 func (self *StatusReporter) run() {
 	defer self.waitGroup.Done()
 
-	startTimeMS := NowMS()
 	startTimeNS := NowNS()
 	deadline := startTimeNS + self.sleepTimeNS
+	startTimeMS := NowMS()
 	startIntervalMS := startTimeMS
 
 	lastTotalOps := int64(0)
@@ -410,14 +409,18 @@ func (self *StatusReporter) computeStats(startTimeMS int64, startIntervalMS int6
 	currentThrough := 1000.0 * float64(totalOps-lastTotalOps) / float64(endIntervalMS-startIntervalMS)
 	estimateRemaining := math.Ceil(float64(todoOps) / throughput)
 
+	if interval <= 0 {
+		// don't output status at startup
+		return totalOps
+	}
 	var buf bytes.Buffer
 	timestamp := strftime.Format("%Y-%m-%d %H:%M:%S:%3n", time.Now())
-	buf.WriteString(fmt.Sprintf("%s%.2d %d sec: %d operations; ", self.label, timestamp, MillisecondToSecond(interval), totalOps))
+	buf.WriteString(fmt.Sprintf("%s%s %d sec: %d operations; ", self.label, timestamp, MillisecondToSecond(interval), totalOps))
 	if totalOps != 0 {
-		buf.WriteString(fmt.Sprintf("%.2d current ops/sec; ", currentThrough))
+		buf.WriteString(fmt.Sprintf("%.2f current ops/sec; ", currentThrough))
 	}
 	if todoOps != 0 {
-		buf.WriteString(fmt.Sprintf("est completion in %s", formatRemaining(int64(estimateRemaining))))
+		buf.WriteString(fmt.Sprintf("est completion in %s; ", formatRemaining(int64(estimateRemaining))))
 	}
 	buf.WriteString(GetMeasurements().GetSummary())
 	EPrintln(buf.String())

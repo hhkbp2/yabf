@@ -3,6 +3,7 @@ package yabf
 import (
 	"github.com/hhkbp2/testify/require"
 	"testing"
+	"time"
 )
 
 func TestProperties(t *testing.T) {
@@ -20,6 +21,13 @@ func TestProperties(t *testing.T) {
 	p.Merge(p2)
 	z := p.Get(k1)
 	require.Equal(t, v1, z)
+}
+
+func TestNSToDuration(t *testing.T) {
+	now := time.Now()
+	later := now.Add(time.Second)
+	diff := later.Sub(now)
+	require.Equal(t, SecondToNanosecond(1), int64(time.Duration(diff)))
 }
 
 func TestToTime(t *testing.T) {
