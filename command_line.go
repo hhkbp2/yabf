@@ -74,10 +74,23 @@ var (
 			HasDefaultValue: false,
 			Doc:             "show this help message and exit",
 		},
+		&Option{
+			Name:            "v",
+			HasArgument:     false,
+			HasDefaultValue: false,
+			Doc:             "show the version number and exit",
+		},
+		&Option{
+			Name:            "version",
+			HasArgument:     false,
+			HasDefaultValue: false,
+			Doc:             "show the version number and exit",
+		},
 	}
 	Options = make(map[string]*Option)
 
 	ProgramName = ""
+	MainVersion = "0.1.0"
 )
 
 type Option struct {
@@ -109,11 +122,11 @@ Databases:
   cloudtable         A distributed KV store
 
 Options:
+  -db classname      use a specified DB class(can also set the "db" property)
+  -l label           use label for status (e.g. to label one experiment out of a whole batch)
   -P filename        specify workload file
   -p name=value      specify a property value
   -s                 show status (default: no status)
-  -l label           use label for status (e.g. to label one experiment out of a whole batch)
-  -db classname      use a specified DB class(can also set the "db" property)
   -table tablename   use the table name instead of the default %s
 
 Workload Files:
@@ -124,8 +137,14 @@ positional arguments:
   {cloudtable}       Database to test.
 
 optional arguments:
-  -h, --help         show this help message and exit`
+  -h, --help         show this help message and exit
+  -v, --version      show the version number and exit`
 	Println(usageFormat, ProgramName, PropertyTableNameDefault)
+}
+
+func Version() {
+	versionFormat := `%s %s (git rev: %s)`
+	Println(versionFormat, ProgramName, MainVersion, GitVersion)
 }
 
 func init() {
@@ -151,8 +170,12 @@ func ParseArgs() *Arguemnts {
 
 	index := 1
 	firstArg := os.Args[index]
-	if firstArg == "-h" || firstArg == "--help" {
+	switch firstArg {
+	case "-h", "--help":
 		Usage()
+		os.Exit(0)
+	case "-v", "--version":
+		Version()
 		os.Exit(0)
 	}
 	index++
@@ -222,6 +245,9 @@ func ParseArgs() *Arguemnts {
 				props.Merge(propsFromFile)
 			case "h", "help":
 				Usage()
+				os.Exit(0)
+			case "v", "version":
+				Version()
 				os.Exit(0)
 			default:
 				opts[option.Name] = arg

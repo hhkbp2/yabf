@@ -1,0 +1,5 @@
+package yabf
+
+const (
+	GitVersion = ""
+)
