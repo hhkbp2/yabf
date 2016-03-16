@@ -30,12 +30,29 @@ var (
 			HasArgument:     true,
 			HasDefaultValue: false,
 			Doc:             "specify workload file",
+			Operation: func(context interface{}, value string) {
+				props, _ := context.(Properties)
+				propsFromFile, err := LoadProperties(value)
+				if err != nil {
+					ExitOnError(err.Error())
+				}
+				props.Merge(propsFromFile)
+			},
 		},
 		&Option{
 			Name:            "p",
 			HasArgument:     true,
 			HasDefaultValue: false,
 			Doc:             "specify a property value",
+			Operation: func(context interface{}, value string) {
+				props, _ := context.(Properties)
+				// it's a property, should be in `k=v` form
+				parts := strings.Split(value, "=")
+				if len(parts) != 2 {
+					ExitOnError("invalid property: %s", value)
+				}
+				props.Add(parts[0], parts[1])
+			},
 		},
 		&Option{
 			Name:            "s",
@@ -54,6 +71,10 @@ var (
 			HasArgument:     true,
 			HasDefaultValue: false,
 			Doc:             "use a specified DB class(can also set the \"db\" property)",
+			Operation: func(context interface{}, value string) {
+				props, _ := context.(Properties)
+				props.Add(PropertyDB, value)
+			},
 		},
 		&Option{
 			Name:            "table",
@@ -61,30 +82,65 @@ var (
 			HasDefaultValue: true,
 			DefaultValue:    PropertyTableNameDefault,
 			Doc:             "use the table name instead of the default %s",
+			Operation: func(context interface{}, value string) {
+				props, _ := context.(Properties)
+				props.Add(PropertyTableName, value)
+			},
+		},
+		&Option{
+			Name:            "x",
+			HasArgument:     true,
+			HasDefaultValue: true,
+			DefaultValue:    "info",
+			Doc:             "specify the level name of log output (dafault: info)",
+			Operation: func(context interface{}, value string) {
+				levelName := strings.ToLower(value)
+				level, ok := nameToLevels[levelName]
+				if !ok {
+					ExitOnError("invalid log level name: %s", value)
+				}
+				logLevel = level
+			},
 		},
 		&Option{
 			Name:            "h",
 			HasArgument:     false,
 			HasDefaultValue: false,
 			Doc:             "show this help message and exit",
+			Operation: func(context interface{}, value string) {
+				Usage()
+				os.Exit(0)
+			},
 		},
 		&Option{
 			Name:            "help",
 			HasArgument:     false,
 			HasDefaultValue: false,
 			Doc:             "show this help message and exit",
+			Operation: func(context interface{}, value string) {
+				Usage()
+				os.Exit(0)
+			},
 		},
 		&Option{
 			Name:            "v",
 			HasArgument:     false,
 			HasDefaultValue: false,
 			Doc:             "show the version number and exit",
+			Operation: func(context interface{}, value string) {
+				Version()
+				os.Exit(0)
+			},
 		},
 		&Option{
 			Name:            "version",
 			HasArgument:     false,
 			HasDefaultValue: false,
 			Doc:             "show the version number and exit",
+			Operation: func(context interface{}, value string) {
+				Version()
+				os.Exit(0)
+			},
 		},
 	}
 	Options = make(map[string]*Option)
@@ -93,12 +149,15 @@ var (
 	MainVersion = "0.1.0"
 )
 
+type OptionOperationFunc func(context interface{}, value string)
+
 type Option struct {
 	Name            string
 	HasArgument     bool
 	HasDefaultValue bool
 	DefaultValue    string
 	Doc             string
+	Operation       OptionOperationFunc
 }
 
 type Arguemnts struct {
@@ -128,6 +187,7 @@ Options:
   -p name=value      specify a property value
   -s                 show status (default: no status)
   -table tablename   use the table name instead of the default %s
+  -x levelname       specify the level name of log output (dafault: info)
 
 Workload Files:
   There are various predefined workloads under workloads/ directory.
@@ -139,12 +199,12 @@ positional arguments:
 optional arguments:
   -h, --help         show this help message and exit
   -v, --version      show the version number and exit`
-	Println(usageFormat, ProgramName, PropertyTableNameDefault)
+	Printf(usageFormat, ProgramName, PropertyTableNameDefault)
 }
 
 func Version() {
 	versionFormat := `%s %s (git rev: %s)`
-	Println(versionFormat, ProgramName, MainVersion, GitVersion)
+	Printf(versionFormat, ProgramName, MainVersion, GitVersion)
 }
 
 func init() {
@@ -159,7 +219,6 @@ func init() {
 
 func ExitOnError(format string, args ...interface{}) {
 	EPrintf(format, args...)
-	EPrintf("\n")
 	os.Exit(1)
 }
 
@@ -197,16 +256,20 @@ func ParseArgs() *Arguemnts {
 	}
 	index++
 
-	// init options to be returned with default values
-	opts := make(map[string]string)
-	for name, opt := range Options {
-		if opt.HasDefaultValue {
-			opts[name] = opt.DefaultValue
-		}
-	}
 	// init property to be returned
 	props := NewProperties()
 	props[PropertyDB] = database
+
+	// init options to be returned with default values
+	options := make(map[string]string)
+	for name, opt := range Options {
+		if opt.HasDefaultValue {
+			options[name] = opt.DefaultValue
+			if opt.Operation != nil {
+				opt.Operation(props, opt.DefaultValue)
+			}
+		}
+	}
 	for i := index; i < len(os.Args); i++ {
 		a := os.Args[i]
 		for _, p := range OptionPrefixes {
@@ -215,51 +278,36 @@ func ParseArgs() *Arguemnts {
 				break
 			}
 		}
-		option, ok := Options[a]
+		opt, ok := Options[a]
 		if !ok {
 			ExitOnError("unknown option: %s", os.Args[i])
 		}
-		if option.HasArgument {
+		if opt.HasArgument {
 			i++
 			if !(i < len(os.Args)) {
-				ExitOnError("missing argument for option: %s", option.Name)
+				ExitOnError("missing argument for option: %s", opt.Name)
 			}
 			arg := os.Args[i]
-			switch option.Name {
-			case "db":
-				props.Add(PropertyDB, arg)
-			case "table":
-				props.Add(PropertyTableName, arg)
-			case "p":
-				// it's a property, should be in `k=v` form
-				parts := strings.Split(arg, "=")
-				if len(parts) != 2 {
-					ExitOnError("invalid property: %s", arg)
-				}
-				props.Add(parts[0], parts[1])
-			case "P":
-				propsFromFile, err := LoadProperties(arg)
-				if err != nil {
-					ExitOnError(err.Error())
-				}
-				props.Merge(propsFromFile)
-			case "h", "help":
-				Usage()
-				os.Exit(0)
-			case "v", "version":
-				Version()
-				os.Exit(0)
-			default:
-				opts[option.Name] = arg
+			if opt.Operation != nil {
+				// invoke option specified operation
+				opt.Operation(props, arg)
+			} else {
+				// default operation is to add it into option list for further process
+				options[opt.Name] = arg
 			}
 		} else {
-			opts[option.Name] = "true"
+			// default value for options without argeumnt is "true"
+			value := "true"
+			options[opt.Name] = value
+			if opt.Operation != nil {
+				opt.Operation(props, value)
+			}
 		}
 	}
 	return &Arguemnts{
 		Command:    command,
 		Database:   database,
-		Options:    opts,
+		Options:    options,
 		Properties: props,
 	}
 }

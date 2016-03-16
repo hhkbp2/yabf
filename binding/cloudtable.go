@@ -54,15 +54,18 @@ func (self *CloudTableDB) Init() error {
 	self.authPassword = authPassword
 	transport, err := thrift.NewTSocket(net.JoinHostPort(host, port))
 	if err != nil {
+		yabf.Errorf("fail to create socket to %s:%s", host, port)
 		return err
 	}
 	if err = transport.Open(); err != nil {
+		yabf.Errorf("fail to connect to %s:%s", host, port)
 		return err
 	}
 	protocolFactory := thrift.NewTBinaryProtocolFactoryDefault()
 	client := cloudtable.NewTCloudTableServiceClientFactory(transport, protocolFactory)
 	_, err = client.Authenticate(authUser, authPassword)
 	if err != nil {
+		yabf.Errorf("fail to authenticate user: %s, password: %s", authUser, authPassword)
 		return err
 	}
 	self.transport = transport
@@ -103,6 +106,7 @@ func (self *CloudTableDB) Read(table string, key string, fields []string) (yabf.
 	get.Columns = fieldsToColumns(self.columnFamily, fields)
 	result, err := self.client.Get(table, get)
 	if err != nil {
+		yabf.Errorf("fail to read table: %s, row: %s, error: %s", table, key, err)
 		return nil, yabf.StatusError
 	}
 	return resultToKVMap(result), yabf.StatusOK
@@ -114,6 +118,7 @@ func (self *CloudTableDB) Scan(table string, startKey string, recordCount int64,
 	scan.Columns = fieldsToColumns(self.columnFamily, fields)
 	results, err := self.client.GetScannerResults(table, scan, int32(recordCount))
 	if err != nil {
+		yabf.Errorf("fail to scan table: %s, start key: %s, record count: %d, error: %s", table, startKey, recordCount, err)
 		return nil, yabf.StatusError
 	}
 	ret := make([]yabf.KVMap, 0, len(results))
@@ -137,7 +142,7 @@ func (self *CloudTableDB) Update(table string, key string, values yabf.KVMap) ya
 	put.ColumnValues = cvs
 	err := self.client.Put(table, put)
 	if err != nil {
-		yabf.EPrintln("DEBUG error on insert: %s", err)
+		yabf.Errorf("fail to update/insert table: %s, key: %s, error: %s", table, key, err)
 		return yabf.StatusError
 	}
 	return yabf.StatusOK
@@ -152,6 +157,7 @@ func (self *CloudTableDB) Delete(table string, key string) yabf.StatusType {
 	delete.Row = []byte(key)
 	err := self.client.DeleteSingle(table, delete)
 	if err != nil {
+		yabf.Errorf("fail to delete table: %s, key: %s, error: %s", table, key, err)
 		return yabf.StatusError
 	}
 	return yabf.StatusOK

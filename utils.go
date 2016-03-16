@@ -2,7 +2,6 @@ package yabf
 
 import (
 	"bufio"
-	"fmt"
 	g "github.com/hhkbp2/yabf/generator"
 	"math/rand"
 	"os"
@@ -71,6 +70,16 @@ func LoadProperties(fileName string) (Properties, error) {
 	return ret, scanner.Err()
 }
 
+func LogProperties(p Properties) {
+	Verbosef("***************** properties *****************")
+	if p != nil {
+		for k, v := range p {
+			Verbosef("\"%s\"=\"%s\"", k, v)
+		}
+	}
+	Verbosef("**********************************************")
+}
+
 func NowMS() int64 {
 	return NanosecondToMillisecond(NowNS())
 }
@@ -127,32 +136,4 @@ func RandomBytes(length int64) []byte {
 		}
 	}
 	return ret
-}
-
-func Printf(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stdout, format, args...)
-}
-
-func EPrintf(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, format, args...)
-}
-
-func Println(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stdout, format, args...)
-	fmt.Fprintln(os.Stdout, "")
-}
-
-func EPrintln(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, format, args...)
-	fmt.Fprintln(os.Stderr, "")
-}
-
-func PrintProperties(p Properties) {
-	Println("***************** properties *****************")
-	if p != nil {
-		for k, v := range p {
-			Println("\"%s\"=\"%s\"", k, v)
-		}
-	}
-	Println("**********************************************")
 }

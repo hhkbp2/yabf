@@ -11,8 +11,6 @@ const (
 	SimulateDelayDefault = "200,1000,10000,50000,100000"
 
 	// BasicDB
-	ConfigBasicDBVerbose        = "basicdb.verbose"
-	ConfigBasicDBVerboseDefault = "true"
 	ConfigSimulateDelay         = "basicdb.simulatedelay"
 	ConfigSimulateDelayDefault  = "0"
 	ConfigRandomizeDelay        = "basicdb.randomizedelay"

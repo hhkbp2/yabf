@@ -150,7 +150,7 @@ func (self *DBWrapper) Init() (err error) {
 	self.reportLatencyForEachError = reportLatencyForEachError
 	self.latencyTrackedErrors = latencyTrackedErrors
 
-	EPrintln("DBWrapper: report latency for each error is %t and specific error codes to track for latency are: %s",
+	Debugf("DBWrapper: report latency for each error is %t and specific error codes to track for latency are: %s",
 		reportLatencyForEachError, propStr)
 	return
 }
@@ -262,7 +262,7 @@ func (self *GoodBadUglyDB) delay() {
 	}
 	// this will make mod 3 pauses global
 	if mod == 3 {
-		EPrintln("OUCH")
+		EPrintf("OUCH")
 	}
 	// TODO
 }

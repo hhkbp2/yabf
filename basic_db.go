@@ -34,7 +34,6 @@ func ConcatKVStr(values KVMap) string {
 // instead of doing them against a real database.
 type BasicDB struct {
 	*DBBase
-	verbose        bool
 	randomizeDelay bool
 	toDelay        int64
 }
@@ -65,11 +64,6 @@ func (self *BasicDB) Delay() {
 func (self *BasicDB) Init() error {
 	p := self.GetProperties()
 	var err error
-	self.verbose, err = strconv.ParseBool(
-		p.GetDefault(ConfigBasicDBVerbose, ConfigBasicDBVerboseDefault))
-	if err != nil {
-		return err
-	}
 	self.toDelay, err = strconv.ParseInt(
 		p.GetDefault(ConfigSimulateDelay, ConfigSimulateDelayDefault), 0, 64)
 	if err != nil {
@@ -80,9 +74,7 @@ func (self *BasicDB) Init() error {
 	if err != nil {
 		return err
 	}
-	if self.verbose {
-		PrintProperties(p)
-	}
+	LogProperties(p)
 	return nil
 }
 
@@ -94,44 +86,34 @@ func (self *BasicDB) Cleanup() error {
 // Read a record from the database.
 func (self *BasicDB) Read(table string, key string, fields []string) (KVMap, StatusType) {
 	self.Delay()
-	if self.verbose {
-		Println("READ %s %s [%s]", table, key, ConcatFieldsStr(fields))
-	}
+	Verbosef("READ %s %s [%s]", table, key, ConcatFieldsStr(fields))
 	return nil, StatusOK
 }
 
 // Perform a range scan for a set of records in the database.
 func (self *BasicDB) Scan(table string, startKey string, recordCount int64, fields []string) ([]KVMap, StatusType) {
 	self.Delay()
-	if self.verbose {
-		Println("SCAN %s %s %d [%s]", table, string(startKey), recordCount, ConcatFieldsStr(fields))
-	}
+	Verbosef("SCAN %s %s %d [%s]", table, string(startKey), recordCount, ConcatFieldsStr(fields))
 	return nil, StatusOK
 }
 
 // Update a record in the database.
 func (self *BasicDB) Update(table string, key string, values KVMap) StatusType {
 	self.Delay()
-	if self.verbose {
-		Println("UPDATE %s %s [%s]", table, key, ConcatKVStr(values))
-	}
+	Verbosef("UPDATE %s %s [%s]", table, key, ConcatKVStr(values))
 	return StatusOK
 }
 
 // Insert a record in the database.
 func (self *BasicDB) Insert(table string, key string, values KVMap) StatusType {
 	self.Delay()
-	if self.verbose {
-		Println("INSERT %s %s [%s]", table, key, ConcatKVStr(values))
-	}
+	Verbosef("INSERT %s %s [%s]", table, key, ConcatKVStr(values))
 	return StatusOK
 }
 
 // Delete a record from the database.
 func (self *BasicDB) Delete(table string, key string) StatusType {
 	self.Delay()
-	if self.verbose {
-		Println("DELETE %s %s", table, key)
-	}
+	Verbosef("DELETE %s %s", table, key)
 	return StatusOK
 }

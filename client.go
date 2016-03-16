@@ -33,7 +33,7 @@ func NewClientBase(args *Arguemnts) *ClientBase {
 func checkRequiredProperties(props Properties) bool {
 	workload, ok := props[PropertyWorkload]
 	if (!ok) || (len(workload) == 0) {
-		EPrintln("Missing property: %s", PropertyWorkload)
+		EPrintf("Missing property: %s", PropertyWorkload)
 		return false
 	}
 	return true
@@ -82,10 +82,9 @@ func (self *ClientBase) Main() {
 		targetPerThreadPerMS = targetPerThread / 1000.0
 	}
 
-	Println("YCSB Client 0.1")
-	Println("Command line: ")
-	Println(strings.Join(os.Args, " "))
-	Println("Loading workload...")
+	Printf("YCSB Client 0.1")
+	Infof("Command line: \n%s", strings.Join(os.Args, " "))
+	Printf("Loading workload...")
 
 	// show a warning message that creating the workload is taking a while
 	// but only do so if it is taking longer than 2 seconds
@@ -98,7 +97,7 @@ func (self *ClientBase) Main() {
 		case <-warningCh:
 			return
 		case <-time.After(waitTime):
-			Println(" (might take a minutes for large data sets)")
+			Printf(" (might take a minutes for large data sets)")
 		}
 	}()
 	// set up measurements
@@ -115,7 +114,7 @@ func (self *ClientBase) Main() {
 	warningCh <- 1
 
 	// run the workload
-	Println("Starting test.")
+	Printf("Starting test.")
 	var opCount int64
 	if self.Args.Command == "run" {
 		propStr = props.GetDefault(PropertyOperationCount, PropertyOperationCountDefault)
@@ -272,13 +271,13 @@ func (self *Worker) run() {
 	}()
 
 	if err := self.db.Init(); err != nil {
-		EPrintln("worker routine fail to init db, error: %s", err)
+		EPrintf("worker routine fail to init db, error: %s", err)
 		self.resultCh <- 0
 		return
 	}
 	workloadState, err := self.workload.InitRoutine(self.props)
 	if err != nil {
-		EPrintln("workload fail to init routine, error: %s", err)
+		EPrintf("workload fail to init routine, error: %s", err)
 		return
 	}
 	// NOTE: switching to using nano seconds for time management here such that
@@ -311,7 +310,7 @@ WORKER_LOOP:
 		}
 	}
 	if err = self.db.Cleanup(); err != nil {
-		EPrintln("cleanup database error: %s", err)
+		EPrintf("cleanup database error: %s", err)
 	}
 }
 
@@ -423,9 +422,9 @@ func (self *StatusReporter) computeStats(startTimeMS int64, startIntervalMS int6
 		buf.WriteString(fmt.Sprintf("est completion in %s; ", formatRemaining(int64(estimateRemaining))))
 	}
 	buf.WriteString(GetMeasurements().GetSummary())
-	EPrintln(buf.String())
+	Printf(buf.String())
 	if self.standardStatus {
-		Println(buf.String())
+		Printf(buf.String())
 	}
 	return totalOps
 }
@@ -501,7 +500,7 @@ func exportMeasurements(props Properties, opCount, runtime int64) error {
 	propStr = props.GetDefault(PropertyExporter, PropertyExporterDefault)
 	exporter, err := NewMeasurementExporter(propStr, f)
 	if err != nil {
-		EPrintln("Could not find exporter %s, will use default text exporter.", propStr)
+		EPrintf("Could not find exporter %s, will use default text exporter.", propStr)
 		exporter = NewTextMeasurementExporter(f)
 	}
 	defer exporter.Close()
@@ -532,8 +531,8 @@ func init() {
 }
 
 func (self *Shell) Main() {
-	Println("YABF Command Line Client")
-	Println(`Type "help" for command line help`)
+	Printf("YABF Command Line Client")
+	Printf(`Type "help" for command line help`)
 
 	db, err := NewDB(self.args.Database, self.args.Properties)
 	if err != nil {
@@ -545,11 +544,11 @@ func (self *Shell) Main() {
 		ExitOnError("fail to init db, error: %s", err)
 	}
 
-	Println("Connected.")
+	Printf("Connected.")
 	scanner := bufio.NewScanner(os.Stdin)
 	tableName := PropertyTableNameDefault
 	for {
-		Printf("> ")
+		PromptPrintf("> ")
 		if !scanner.Scan() {
 			break
 		}
@@ -570,17 +569,17 @@ func (self *Shell) Main() {
 			case "table":
 				switch length {
 				case 1:
-					Println(`Using table "%s"`, tableName)
+					Printf(`Using table "%s"`, tableName)
 				case 2:
 					tableName = parts[1]
-					Println(`Using table "%s"`, tableName)
+					Printf(`Using table "%s"`, tableName)
 				default:
-					Println(`Error: syntax is "table tablename"`)
+					EPrintf(`Error: syntax is "table tablename"`)
 				}
 			case "read":
 				switch length {
 				case 1:
-					Println(`Error: syntax is "read keyname [field1 field2 ...]"`)
+					EPrintf(`Error: syntax is "read keyname [field1 field2 ...]"`)
 				default:
 					key := parts[1]
 					fields := make([]string, 0, length-2)
@@ -588,19 +587,19 @@ func (self *Shell) Main() {
 						fields = append(fields, parts[i])
 					}
 					ret, status := db.Read(tableName, key, fields)
-					Println("Return code: %s", status)
+					Printf("Return code: %s", status)
 					for k, v := range ret {
-						Println("%s=%s", k, v)
+						Printf("%s=%s", k, v)
 					}
 				}
 			case "scan":
 				if length < 3 {
-					EPrintln(`Error: syntax is "scan keyname scanlength [field1 field2 ...]"`)
+					EPrintf(`Error: syntax is "scan keyname scanlength [field1 field2 ...]"`)
 				} else {
 					key := parts[1]
 					scanLength, err := strconv.ParseInt(parts[2], 0, 64)
 					if err != nil {
-						EPrintln("invalid scanlength: %s", parts[2])
+						EPrintf("invalid scanlength: %s", parts[2])
 						break
 					}
 					fields := make([]string, 0, length-3)
@@ -608,68 +607,68 @@ func (self *Shell) Main() {
 						fields = append(fields, parts[i])
 					}
 					ret, status := db.Scan(tableName, key, scanLength, fields)
-					Println("Return code: %s", status)
+					Printf("Return code: %s", status)
 					if len(ret) == 0 {
-						Println("0 records")
+						Printf("0 records")
 					} else {
-						Println("--------------------------------")
+						Printf("--------------------------------")
 						count := 0
 						for _, kv := range ret {
-							Println("Record %d", count)
+							Printf("Record %d", count)
 							count++
 							for k, v := range kv {
-								Println("%s=%s", k, v)
+								Printf("%s=%s", k, v)
 							}
-							Println("--------------------------------")
+							Printf("--------------------------------")
 						}
 					}
 				}
 			case "update":
 				if length < 3 {
-					EPrintln(`Error: syntax is "update keyname name1=value1 [name2=value2 ...]"`)
+					EPrintf(`Error: syntax is "update keyname name1=value1 [name2=value2 ...]"`)
 				} else {
 					key := parts[1]
 					values := make(map[string]Binary)
 					for i := 2; i < length; i++ {
 						nv := strings.Split(parts[i], "=")
 						if len(nv) != 2 {
-							EPrintln(`Error: invalid name=value %s`, parts[i])
+							EPrintf(`Error: invalid name=value %s`, parts[i])
 							break READLINE
 						}
 						values[nv[0]] = []byte(nv[1])
 					}
 					status := db.Update(tableName, key, values)
-					Println("Result: %s", status)
+					Printf("Result: %s", status)
 				}
 			case "insert":
 				if length < 3 {
-					EPrintln(`Error: syntax is "insert keyname name1=value1 [name2=value2 ...]"`)
+					EPrintf(`Error: syntax is "insert keyname name1=value1 [name2=value2 ...]"`)
 				} else {
 					key := parts[1]
 					values := make(map[string]Binary)
 					for i := 2; i < length; i++ {
 						nv := strings.Split(parts[i], "=")
 						if len(nv) != 2 {
-							EPrintln(`Error: invalid name=value %s`, parts[i])
+							EPrintf(`Error: invalid name=value %s`, parts[i])
 							break READLINE
 						}
 						values[nv[0]] = []byte(nv[1])
 					}
 					status := db.Insert(tableName, key, values)
-					Println("Result: %s", status)
+					Printf("Result: %s", status)
 				}
 			case "delete":
 				if length != 2 {
-					EPrintln(`Error: syntax is "delete keyname"`)
+					EPrintf(`Error: syntax is "delete keyname"`)
 				} else {
 					status := db.Delete(tableName, parts[1])
-					Println("Result: %s", status)
+					Printf("Result: %s", status)
 				}
 			default:
-				EPrintln(`Error: unknown command "%s"`, parts[0])
+				EPrintf(`Error: unknown command "%s"`, parts[0])
 			}
 		}
-		Println("%d ms", NowMS()-startTime)
+		Printf("%d ms", NowMS()-startTime)
 	}
 }
 
@@ -682,5 +681,5 @@ func (self *Shell) help() {
   delete key - Delete a record
   table [tablename] - Get or [set] the name of the table
   quit - Quit`
-	Println(helpFormat)
+	Printf(helpFormat)
 }

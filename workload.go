@@ -698,7 +698,7 @@ func (self *ConstantOccupancyWorkload) Init(p Properties) (err error) {
 	_, ok2 := p[PropertyInsertCount]
 	_, ok3 := p[PropertyOperationCount]
 	if ok1 || ok2 || ok3 {
-		EPrintln("Warning: record, insert or operation count was set prior to initting ConstantOccupancyWorkload. Overriding old values.")
+		Warnf("Warning: record, insert or operation count was set prior to initting ConstantOccupancyWorkload. Overriding old values.")
 	}
 	gen, err := self.CoreWorkload.getFieldLengthGenerator(p)
 	try(err)

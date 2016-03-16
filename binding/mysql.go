@@ -106,6 +106,7 @@ func (self *MysqlDB) Read(table string, key string, fields []string) (yabf.KVMap
 		if err == sql.ErrNoRows {
 			return nil, yabf.StatusNotFound
 		}
+		yabf.Errorf("fail to read table: %s, key: %s, error: %s", table, key, err)
 		return nil, yabf.StatusError
 	}
 	columns, err := rows.Columns()
@@ -149,6 +150,7 @@ func (self *MysqlDB) Scan(table string, startKey string, recordCount int64, fiel
 		if err == sql.ErrNoRows {
 			return nil, yabf.StatusNotFound
 		}
+		yabf.Errorf("fail to scan table: %s, start key: %s, record count: %d, error: %s", table, startKey, recordCount, err)
 		return nil, yabf.StatusError
 	}
 	columns, err := rows.Columns()
@@ -207,6 +209,7 @@ func (self *MysqlDB) Update(table string, key string, values yabf.KVMap) yabf.St
 		if err == sql.ErrNoRows {
 			return yabf.StatusNotFound
 		}
+		yabf.Errorf("fail to update table: %s, key: %s, error: %s", table, key, err)
 		return yabf.StatusError
 	}
 	return yabf.StatusOK
@@ -236,6 +239,7 @@ func (self *MysqlDB) Insert(table string, key string, values yabf.KVMap) yabf.St
 	}
 	_, err = stmt.Exec(args...)
 	if err != nil {
+		yabf.Errorf("fail to insert table: %s, key: %s, error: %s", table, key, err)
 		return yabf.StatusError
 	}
 	return yabf.StatusOK
@@ -252,6 +256,7 @@ func (self *MysqlDB) Delete(table string, key string) yabf.StatusType {
 		if err == sql.ErrNoRows {
 			return yabf.StatusNotFound
 		}
+		yabf.Errorf("fail to delete table: %s, key: %s, error: %s", table, key, err)
 		return yabf.StatusError
 	}
 	return yabf.StatusOK
