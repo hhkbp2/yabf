@@ -3,7 +3,6 @@
 QUIET    := @
 MKDIR    := mkdir -p
 RM       := rm -rf
-MV       := mv
 SED      := sed
 GIT      := git
 GO       := $(if $(shell which gov),gov,go)
@@ -27,7 +26,7 @@ $(bin_targets): $(gen_dir) $(source_files)
 # write git latest version to version file
 # $(call update-version)
 define update-version
-  $(QUIET) $(SED) -e "s/\\(.*\"\\)[^\"]*\\(\".*\\)/\\1$$($(GIT) rev-parse --short HEAD)\\2/g" < $(version_source_file) > $(version_source_file).tmp && $(MV) $(version_source_file).tmp $(version_source_file)
+  $(QUIET) $(SED) -e "s/\\(.*\"\\)[^\"]*\\(\".*\\)/\\1$$($(GIT) rev-parse --short HEAD)\\2/g" < $(version_source_file).template > $(version_source_file)
 endef
 
 $(bin_targets): %: %.go
