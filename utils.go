@@ -115,7 +115,7 @@ const (
 func makeRandomBytes() []byte {
 	buf := make([]byte, RandomBytesLength)
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	v := int8(r.Int63())
+	v := r.Int63()
 	buf[0] = byte(' ' + (v & 31))
 	buf[1] = byte(' ' + ((v >> 5) & 63))
 	buf[2] = byte(' ' + ((v >> 10) & 95))

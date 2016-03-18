@@ -39,28 +39,28 @@ func Flogf(w io.Writer, level LogLevelType, format string, args ...interface{}) 
 	}
 }
 
-func Logf(level LogLevelType, format string, args ...interface{}) {
+func Log(level LogLevelType, format string, args ...interface{}) {
 	Flogf(os.Stdout, level, format, args...)
 }
 
 func Errorf(format string, args ...interface{}) {
-	Logf(LevelError, format, args...)
+	Log(LevelError, format, args...)
 }
 
 func Warnf(format string, args ...interface{}) {
-	Logf(LevelWarn, format, args...)
+	Log(LevelWarn, format, args...)
 }
 
 func Infof(format string, args ...interface{}) {
-	Logf(LevelInfo, format, args...)
+	Log(LevelInfo, format, args...)
 }
 
 func Debugf(format string, args ...interface{}) {
-	Logf(LevelDebug, format, args...)
+	Log(LevelDebug, format, args...)
 }
 
 func Verbosef(format string, args ...interface{}) {
-	Logf(LevelVerbose, format, args...)
+	Log(LevelVerbose, format, args...)
 }
 
 func PromptPrintf(format string, args ...interface{}) {
