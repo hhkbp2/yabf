@@ -73,13 +73,13 @@ Example 2: Run a specified workload
 
 1. load a data set into the database
 ```shell
-$ yabf load [database binding] \[host, port, user, password and other parameters]
+$ yabf load [database binding] [host, port, user, password and other parameters]
 ```
 
 2. run the specified workload to test the performance
 
 ```shell
-$ yabf run [database binding] \[host, port, user, password and other parameters]
+$ yabf run [database binding] [host, port, user, password and other parameters]
 ```
 
 `YABF` support a varity of properties are support to customize the workload, e.g.
