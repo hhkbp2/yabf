@@ -35,7 +35,7 @@ $ make clean
 
 Copy `yabf` binary into `PATH` and use it in the following scenarios:
 
-Example 1: Run as interactive shell
+#### Example 1: Run as interactive shell
 
 `YABF` contains two dummy database bindings by default. The binding of name `simple` just does nothing, which could be used as a silent database binding to verify the `YABF` logic/workload loading. The binding of name `basic` does nothing but echo every operation, which is handy in interactive shell.
 
@@ -67,7 +67,7 @@ Return code: OK
 > 
 ```
 
-Example 2: Run a specified workload
+#### Example 2: Run a specified workload
 
 `YABF` support workload and various properties to customize the workload as needed. A usual process of testing a database would be:
 
