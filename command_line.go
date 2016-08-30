@@ -178,7 +178,7 @@ Commands:
 Databases:
   simple             A demo database that does nothing
   basic              A demo database that does nothing but echo the operations
-  cloudtable         A distributed KV store
+  mysql              Mysql server
 
 Options:
   -db classname      use a specified DB class(can also set the "db" property)
@@ -194,7 +194,7 @@ Workload Files:
 
 positional arguments:
   {load,run,shell}   Command to run.
-  {cloudtable}       Database to test.
+  {mysql}            Database to test.
 
 optional arguments:
   -h, --help         show this help message and exit

@@ -8,20 +8,18 @@ GIT      := git
 GO       := $(if $(shell which gov),gov,go)
 
 root_dir := $(CURDIR)
-cloudtable_idl := $(root_dir)/binding/cloudtable.thrift
-gen_dir  := $(root_dir)/binding/cloudtable-gen
 bin_dir  := ./main
 bin_targets := $(patsubst %.go,%,$(wildcard $(bin_dir)/*.go))
 version_file := version.go
 version_source_file := $(root_dir)/$(version_file)
-source_files := $(filter-out %$(version_file),$(filter-out %test.go,$(shell find $(root_dir) -path $(gen_dir) -prune -o -name '*.go')))
+source_files := $(filter-out %$(version_file),$(filter-out %test.go,$(shell find $(root_dir) -name '*.go')))
 
 
 .PHONY: all gen test test-root test-generator clean
 
 all: $(bin_targets)
 
-$(bin_targets): $(gen_dir) $(source_files)
+$(bin_targets): $(source_files)
 
 # write git latest version to version file
 # $(call update-version)
@@ -33,9 +31,6 @@ $(bin_targets): %: %.go
 	$(call update-version)
 	$(QUIET) cd $(dir $@) && $(GO) build -o $(notdir $@) $(notdir $<)
 
-$(gen_dir): $(cloudtable_idl)
-	$(QUIET) $(MKDIR) $@ && thrift --gen go -out $@ $<
-
 test: test-root test-generator
 
 test-root:
@@ -45,5 +40,5 @@ test-generator:
 	$(QUIET) cd generator && $(GO) test -v
 
 clean:
-	$(QUIET) $(RM) $(gen_dir) $(bin_targets)
+	$(QUIET) $(RM) $(bin_targets)
 
