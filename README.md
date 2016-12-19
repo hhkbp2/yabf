@@ -13,8 +13,6 @@
 
 ## Build
 
-Thrift is used in some database binding of `YABF`. To build `YABF`, you need to have the thrift generator(with Golang support) installed. Please refer to [thrift documentation][thrift-doc] for more info on how to install thrift. After the installation, make sure the command `thrift` in `PATH`.
-
 Then get the source code(following the Golang convention, you have to prepare the `GOPATH`) and build it with these commands:
 
 ```shell
@@ -85,7 +83,7 @@ $ yabf run [database binding] [host, port, user, password and other parameters]
 `YABF` support a varity of properties are support to customize the workload, e.g.
 
 ```shell
-yabf load cloudtable \
+yabf load mysql \
   -s \
   -p workload=CoreWorkload \
   -p recordcount=100000000 \
@@ -96,22 +94,18 @@ yabf load cloudtable \
   -p updateproportion=0.65
   -p insertproportion=0.15
   -p core_workload_insertion_retry_limit=1 \
-  -p cloudtable.host=localhost \
-  -p cloudtable.port=2000 \
-  -p cloudtable.namespace=test \
+  -p mysql.host=localhost \
+  -p mysql.port=2000 \
+  -p mysql.db=test \
   -p table=test.test \
-  -p cloudtable.columnfamily=f1 \
-  -p cloudtable.authuser=user \
-  -p cloudtable.authpassword=password \
-  -p fieldcount=1 \
-  -p keyprefix=
+  -p mysql.user=user \
+  -p mysql.password=password \
+  -p mysql.primarykey=testkey
 ```
 
-This command specifies the record total to 100 000 000, concurrent operation thread number to 2 000 000, max operation number is 30 000 000, max insertion number is 4 000 000, read/update/insert propotion to 0.2, 0.65, 0.15, and other properties to test the performance of [cloudtable][cloudtable-post] binding.
+This command specifies the record total to 100 000 000, concurrent operation thread number to 2 000 000, max operation number is 30 000 000, max insertion number is 4 000 000, read/update/insert propotion to 0.2, 0.65, 0.15, and other properties to test the performance of MySQL binding.
 
 After the test process is finished, `YABF` would output a summary report of the whole test.
 
 [ycsb-github]: https://github.com/brianfrankcooper/YCSB
-[thrift-doc]: https://thrift.apache.org/docs/install/
-[cloudtable-post]: http://xlambda.com/blog/2015/09/06/cloudtable-a-distrubted-consistent-big-data-store/
 
