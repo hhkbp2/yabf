@@ -42,7 +42,7 @@ const (
 	// is the bottleneck. Additionally, workloads should support the
 	// "insertstart" property, which tells them which record to start at.
 	PropertyInsertCount = "insertcount"
-	// Target number of opertions per second
+	// Target number of operations per second
 	PropertyTarget        = "target"
 	PropertyTargetDefault = "0"
 	// The maximum amount of time (in seconds) for which the benchmark will be run.
@@ -153,7 +153,7 @@ const (
 	HotspotDataFraction = "hotspotdatafraction"
 	// The default value of `HotspotDataFraction`
 	HotspotDataFractionDefault = "0.2"
-	// Percentage opertions that access the hot set.
+	// Percentage operations that access the hot set.
 	HotspotOpnFraction = "hotspotopnfraction"
 	// The default value of `HotspotOpnFraction`
 	HotspotOpnFractionDefault = "0.8"

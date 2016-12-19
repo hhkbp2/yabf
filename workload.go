@@ -468,7 +468,7 @@ func (self *CoreWorkload) buildDeterministicValue(key string, fieldKey string) [
 // Do one insert operation. Because it will be called concurrently from
 // multiple client goroutines, this function must be routine safe.
 // However, avoid synchronized, or the goroutines will block waiting
-// for each other, and it will be difficult to reach the target thoughput.
+// for each other, and it will be difficult to reach the target throughput.
 // Ideally, this function would have no side effects other than DB operations.
 func (self *CoreWorkload) DoInsert(db DB, object interface{}) bool {
 	keyNumber := self.keySequence.NextInt()
