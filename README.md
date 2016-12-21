@@ -90,9 +90,9 @@ yabf load mysql \
   -p threadcount=2000000 \
   -p operationcount=30000000 \
   -p insertcount=4000000 \
-  -p readproportion=0.2
-  -p updateproportion=0.65
-  -p insertproportion=0.15
+  -p readproportion=0.2 \
+  -p updateproportion=0.65 \
+  -p insertproportion=0.15 \
   -p core_workload_insertion_retry_limit=1 \
   -p mysql.host=localhost \
   -p mysql.port=2000 \
