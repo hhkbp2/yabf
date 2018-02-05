@@ -146,7 +146,7 @@ func (self *ClientBase) Main() {
 		if i < (opCount % threadCount) {
 			threadOpCount++
 		}
-		worker := NewWorker(db, workload, props, self.DoTransactions, opCount, targetPerThreadPerMS, workerCh, resultCh)
+		worker := NewWorker(db, workload, props, self.DoTransactions, threadOpCount, targetPerThreadPerMS, workerCh, resultCh)
 		workers = append(workers, worker)
 		go worker.run()
 	}
