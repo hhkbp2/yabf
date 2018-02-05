@@ -98,6 +98,7 @@ func (self *MysqlDB) createReadStat(table string, fields []string, recordCount i
 func (self *MysqlDB) Read(table string, key string, fields []string) (yabf.KVMap, yabf.StatusType) {
 	statement := self.createReadStat(table, fields, 0)
 	stmt, err := self.db.Prepare(statement)
+	defer stmt.Close()
 	if err != nil {
 		return nil, yabf.StatusBadRequest
 	}
@@ -142,6 +143,7 @@ func (self *MysqlDB) Read(table string, key string, fields []string) (yabf.KVMap
 func (self *MysqlDB) Scan(table string, startKey string, recordCount int64, fields []string) ([]yabf.KVMap, yabf.StatusType) {
 	statement := self.createReadStat(table, fields, recordCount)
 	stmt, err := self.db.Prepare(statement)
+	defer stmt.Close()
 	if err != nil {
 		return nil, yabf.StatusBadRequest
 	}
@@ -201,6 +203,7 @@ func (self *MysqlDB) createUpdateStat(table string, values yabf.KVMap) (string, 
 func (self *MysqlDB) Update(table string, key string, values yabf.KVMap) yabf.StatusType {
 	statement, args := self.createUpdateStat(table, values)
 	stmt, err := self.db.Prepare(statement)
+	defer stmt.Close()
 	if err != nil {
 		return yabf.StatusBadRequest
 	}
@@ -234,6 +237,7 @@ func (self *MysqlDB) createInsertStat(table string, key string, values yabf.KVMa
 func (self *MysqlDB) Insert(table string, key string, values yabf.KVMap) yabf.StatusType {
 	statement, args := self.createInsertStat(table, key, values)
 	stmt, err := self.db.Prepare(statement)
+	defer stmt.Close()
 	if err != nil {
 		return yabf.StatusBadRequest
 	}
@@ -248,6 +252,7 @@ func (self *MysqlDB) Insert(table string, key string, values yabf.KVMap) yabf.St
 func (self *MysqlDB) Delete(table string, key string) yabf.StatusType {
 	statement := fmt.Sprintf("DELETE FROM %s WHERE %s = ?", table, self.primaryKey)
 	stmt, err := self.db.Prepare(statement)
+	defer stmt.Close()
 	if err != nil {
 		return yabf.StatusBadRequest
 	}
