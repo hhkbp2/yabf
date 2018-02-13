@@ -109,7 +109,7 @@ func NewZipfianGenerator(
 	countForzata, zeta2theta := zeta(0, 2, theta, 0)
 	alpha := 1.0 / (1.0 - theta)
 	countForzata = items
-	eta := (1 - math.Pow(float64(2.0/items), 1-theta)) / (1 - zeta2theta/zetan)
+	eta := (1 - math.Pow(2.0/float64(items), 1-theta)) / (1 - zeta2theta/zetan)
 
 	object := &ZipfianGenerator{
 		IntegerGeneratorBase:   NewIntegerGeneratorBase(0),
