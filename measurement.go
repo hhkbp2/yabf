@@ -6,8 +6,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"github.com/codahale/hdrhistogram"
-	g "github.com/hhkbp2/yabf/generator"
 	"io"
 	"math"
 	"os"
@@ -16,6 +14,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/codahale/hdrhistogram"
+	g "github.com/hhkbp2/yabf/generator"
 )
 
 type MeasurementType uint8
@@ -530,7 +531,7 @@ func (self *OneMeasurementRaw) ExportMeasurements(exporter MeasurementExporter) 
 	for e := self.measurements.Front(); e != nil; e = e.Next() {
 		p := e.Value.(*RawDataPoint)
 		tryn(self.file.WriteString(fmt.Sprintf("%s,%d,%d",
-			self.GetName(), p.timestamp, p.value)))
+			self.GetName(), p.timestamp.UnixNano()/1000, p.value)))
 	}
 	if len(self.filePath) != 0 {
 		self.file.Close()

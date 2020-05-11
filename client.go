@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"github.com/hhkbp2/go-strftime"
-	g "github.com/hhkbp2/yabf/generator"
 	"math"
 	"os"
 	"regexp"
@@ -13,6 +11,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/hhkbp2/go-strftime"
+	g "github.com/hhkbp2/yabf/generator"
 )
 
 type Client interface {
@@ -47,7 +48,7 @@ func (self *ClientBase) CheckProperties() {
 	if ok {
 		doTransactions, err := strconv.ParseBool(propStr)
 		if err != nil {
-			ExitOnError("invalid property %s=%s, should be bool", PropertyTransactions)
+			ExitOnError("invalid property %s=%s, should be bool", PropertyTransactions, propStr)
 		}
 		if doTransactions != self.DoTransactions {
 			ExitOnError("property %s=%s conflicts with command %s", PropertyTransactions, propStr, self.Args.Command)
