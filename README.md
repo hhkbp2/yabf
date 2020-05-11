@@ -13,12 +13,11 @@
 
 ## Build
 
-Then get the source code(following the Golang convention, you have to prepare the `GOPATH`) and build it with these commands:
+Then get the source code and build it with these commands:
 
 ```shell
-$ go get github.com/hhkbp2/yabf
-$ cd github.com/hhkbp2/yabf
-$ make
+$ git clone https://github.com/hhkbp2/yabf.git
+$ cd yabf && make
 ```
 
 When the build process is done, you could get the `YABF` binary located at `main/yabf`. 

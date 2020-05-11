@@ -5,7 +5,7 @@ MKDIR    := mkdir -p
 RM       := rm -rf
 SED      := sed
 GIT      := git
-GO       := $(if $(shell which gov),gov,go)
+GO       := go
 
 root_dir := $(CURDIR)
 bin_dir  := ./main
