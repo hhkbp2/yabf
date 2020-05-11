@@ -3,7 +3,6 @@ package yabf
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 )
 
@@ -313,8 +312,6 @@ func ParseArgs() *Arguemnts {
 }
 
 func Main() {
-	// enable MAXPROCS option
-	runtime.GOMAXPROCS(runtime.NumCPU())
 	args := ParseArgs()
 	var client Client
 	switch args.Command {
