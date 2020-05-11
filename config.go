@@ -125,7 +125,7 @@ const (
 	PropertyScanProportion = "scanproportion"
 	// The default value of `PropertyScanProportion`
 	PropertyScanProportionDefault = "0.0"
-	// The name of the property for porportion of transcations
+	// The name of the property for proportion of transcations
 	// that are read-modify-write.
 	PropertyReadModifyWriteProportion = "readmodifywriteproportion"
 	// The default value of `PropertyReadModifyWriteProportion`
@@ -193,7 +193,7 @@ const (
 	// HdrHistogram type which already outputs summary stats. But even in
 	// that case, the user may still want this class to compute summary stats
 	// for them, especially if they want accurate computation of percentiles
-	// (because percentils computed by histogram classes are still
+	// (because percentiles computed by histogram classes are still
 	// approximations).
 	NoSummaryStats        = "measurement.raw.no_summary"
 	NoSummaryStatsDefault = "false"

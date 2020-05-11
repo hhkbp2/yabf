@@ -3,11 +3,12 @@ package yabf
 import (
 	"bytes"
 	"fmt"
-	g "github.com/hhkbp2/yabf/generator"
 	"math"
 	"math/rand"
 	"strconv"
 	"time"
+
+	g "github.com/hhkbp2/yabf/generator"
 )
 
 type MakeWorkloadFunc func() Workload
@@ -70,7 +71,7 @@ type Workload interface {
 	// Do one insert operation. Because it will be called concurrently from
 	// multiple routines, this function must be routine safe.
 	// However, avoid synchronized, or the routines will block waiting for
-	// each other, and it will be difficult to reah the target throughput.
+	// each other, and it will be difficult to reach the target throughput.
 	// Ideally, this function would have no side effects other than
 	// DB operations and mutations on object. Mutations to object do not need
 	// to be synchronized, since each routine has its own object instance.
@@ -79,7 +80,7 @@ type Workload interface {
 	// Do one transaction operation. Because it will be called concurrently
 	// from multiple client routines, this function must be routine safe.
 	// However, avoid synchronized, or the routines will block waiting for
-	// each other, and it will be difficult to reach the target throughtput.
+	// each other, and it will be difficult to reach the target throughput.
 	// Ideally, this function would have no side effects other than
 	// DB operations and mutations on object. Mutations to object do not need
 	// to be synchronized, since each routine has its own object instance.
@@ -101,7 +102,7 @@ type Workload interface {
 //                   (default: 0.95)
 //   updateproportion: what proportion of operations should be updates
 //                     (default: 0.05)
-//   insertproportion: what porportion of operations should be inserts
+//   insertproportion: what proportion of operations should be inserts
 //                     (default: 0)
 //   scanproportion: what proportion of operations should be scans (default: 0)
 //   readmodifywriteproportion: what proportion of operations should be read a
@@ -503,10 +504,10 @@ func (self *CoreWorkload) DoInsert(db DB, object interface{}) bool {
 	return (status == StatusOK)
 }
 
-// Do one transcation operation. Because it will be called concurrently from
+// Do one transaction operation. Because it will be called concurrently from
 // multiple client goroutines, this function must be routine safe.
 // However, avoid synchronized, or the goroutines will block waiting
-// for each other, and it will be difficult to reach the target thoughtput.
+// for each other, and it will be difficult to reach the target throughput.
 // Ideally, this function would have no side effects other than DB operations.
 func (self *CoreWorkload) DoTransaction(db DB, object interface{}) bool {
 	op := self.operationChooser.NextString()

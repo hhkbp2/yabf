@@ -296,7 +296,7 @@ func ParseArgs() *Arguemnts {
 				options[opt.Name] = arg
 			}
 		} else {
-			// default value for options without argeumnt is "true"
+			// default value for options without argument is "true"
 			value := "true"
 			options[opt.Name] = value
 			if opt.Operation != nil {
